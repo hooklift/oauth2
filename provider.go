@@ -1,3 +1,5 @@
+// Package oauth2 implements a OAuth 2.0 authorization server
+// For details about the spec please refer to http://tools.ietf.org/html/rfc6749
 package oauth2
 
 import (

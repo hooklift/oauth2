@@ -1,5 +1,6 @@
-// Package authorizations handles requests for granting and revoking authorization grants
+// Package authorizations handles requests for granting and revoking authorization grants.
 //
+// 1.3.  Authorization Grant
 // An authorization grant is a credential representing the resource
 // owner's authorization (to access its protected resources) used by the
 // client to obtain an access token.  The rfc6749 spec defines four
@@ -9,88 +10,88 @@
 //
 // -- http://tools.ietf.org/html/rfc6749#section-1.3
 //
-// 4.  Obtaining Authorization
+// 1.3.1.  Authorization Code
 //
-// To request an access token, the client obtains authorization from the
-// resource owner.  The authorization is expressed in the form of an
-// authorization grant, which the client uses to request the access
-// token.  OAuth defines four grant types: authorization code, implicit,
-// resource owner password credentials, and client credentials.  It also
-// provides an extension mechanism for defining additional grant types.
+// The authorization code is obtained by using an authorization server
+// as an intermediary between the client and resource owner.  Instead of
+// requesting authorization directly from the resource owner, the client
+// directs the resource owner to an authorization server (via its
+// user-agent as defined in [RFC2616]), which in turn directs the
+// resource owner back to the client with the authorization code.
 //
-// 4.1. Authorization Code Grant
+// Before directing the resource owner back to the client with the
+// authorization code, the authorization server authenticates the
+// resource owner and obtains authorization.  Because the resource owner
+// only authenticates with the authorization server, the resource
+// owner's credentials are never shared with the client.
 //
-// The authorization code grant type is used to obtain both access
-// tokens and refresh tokens and is optimized for confidential clients.
-// Since this is a redirection-based flow, the client must be capable of
-// interacting with the resource owner's user-agent (typically a web
-// browser) and capable of receiving incoming requests (via redirection)
-// from the authorization server.
+// The authorization code provides a few important security benefits,
+// such as the ability to authenticate the client, as well as the
+// transmission of the access token directly to the client without
+// passing it through the resource owner's user-agent and potentially
+// exposing it to others, including the resource owner.
 //
-//   +----------+
-//   | Resource |
-//   |   Owner  |
-//   |          |
-//   +----------+
-//        ^
-//        |
-//       (B)
-//   +----|-----+          Client Identifier      +---------------+
-//   |         -+----(A)-- & Redirection URI ---->|               |
-//   |  User-   |                                 | Authorization |
-//   |  Agent  -+----(B)-- User authenticates --->|     Server    |
-//   |          |                                 |               |
-//   |         -+----(C)-- Authorization Code ---<|               |
-//   +-|----|---+                                 +---------------+
-//     |    |                                         ^      v
-//    (A)  (C)                                        |      |
-//     |    |                                         |      |
-//     ^    v                                         |      |
-//   +---------+                                      |      |
-//   |         |>---(D)-- Authorization Code ---------'      |
-//   |  Client |          & Redirection URI                  |
-//   |         |                                             |
-//   |         |<---(E)----- Access Token -------------------'
-//   +---------+       (w/ Optional Refresh Token)
+// -- http://tools.ietf.org/html/rfc6749#section-1.3.1
 //
-// Note: The lines illustrating steps (A), (B), and (C) are broken into
-// two parts as they pass through the user-agent.
+// 1.3.2.  Implicit
 //
-//                   Figure 3: Authorization Code Flow
+// The implicit grant is a simplified authorization code flow optimized
+// for clients implemented in a browser using a scripting language such
+// as JavaScript.  In the implicit flow, instead of issuing the client
+// an authorization code, the client is issued an access token directly
+// (as the result of the resource owner authorization).  The grant type
+// is implicit, as no intermediate credentials (such as an authorization
+// code) are issued (and later used to obtain an access token).
 //
-// The flow illustrated in Figure 3 includes the following steps:
+// When issuing an access token during the implicit grant flow, the
+// authorization server does not authenticate the client.  In some
+// cases, the client identity can be verified via the redirection URI
+// used to deliver the access token to the client.  The access token may
+// be exposed to the resource owner or other applications with access to
+// the resource owner's user-agent.
 //
-// (A)  The client initiates the flow by directing the resource owner's
-//      user-agent to the authorization endpoint.  The client includes
-//      its client identifier, requested scope, local state, and a
-//      redirection URI to which the authorization server will send the
-//      user-agent back once access is granted (or denied).
+// Implicit grants improve the responsiveness and efficiency of some
+// clients (such as a client implemented as an in-browser application),
+// since it reduces the number of round trips required to obtain an
+// access token.  However, this convenience should be weighed against
+// the security implications of using implicit grants, such as those
+// described in Sections 10.3 and 10.16, especially when the
+// authorization code grant type is available.
 //
-// (B)  The authorization server authenticates the resource owner (via
-//      the user-agent) and establishes whether the resource owner
-//      grants or denies the client's access request.
+// -- http://tools.ietf.org/html/rfc6749#section-1.3.2
 //
-// (C)  Assuming the resource owner grants access, the authorization
-//      server redirects the user-agent back to the client using the
-//      redirection URI provided earlier (in the request or during
-//      client registration).  The redirection URI includes an
-//      authorization code and any local state provided by the client
-//      earlier.
+// 1.3.3.  Resource Owner Password Credentials
 //
-// (D)  The client requests an access token from the authorization
-//      server's token endpoint by including the authorization code
-//      received in the previous step.  When making the request, the
-//      client authenticates with the authorization server.  The client
-//      includes the redirection URI used to obtain the authorization
-//      code for verification.
+// The resource owner password credentials (i.e., username and password)
+// can be used directly as an authorization grant to obtain an access
+// token.  The credentials should only be used when there is a high
+// degree of trust between the resource owner and the client (e.g., the
+// client is part of the device operating system or a highly privileged
+// application), and when other authorization grant types are not
+// available (such as an authorization code).
 //
-// (E)  The authorization server authenticates the client, validates the
-//      authorization code, and ensures that the redirection URI
-//      received matches the URI used to redirect the client in
-//      step (C).  If valid, the authorization server responds back with
-//      an access token and, optionally, a refresh token.
+// Even though this grant type requires direct client access to the
+// resource owner credentials, the resource owner credentials are used
+// for a single request and are exchanged for an access token.  This
+// grant type can eliminate the need for the client to store the
+// resource owner credentials for future use, by exchanging the
+// credentials with a long-lived access token or refresh token.
 //
-// -- http://tools.ietf.org/html/rfc6749#section-4.1
+// -- http://tools.ietf.org/html/rfc6749#section-1.3.3
+//
+// 1.3.4.  Client Credentials
+//
+// The client credentials (or other forms of client authentication) can
+// be used as an authorization grant when the authorization scope is
+// limited to the protected resources under the control of the client,
+// or to protected resources previously arranged with the authorization
+// server.  Client credentials are used as an authorization grant
+// typically when the client is acting on its own behalf (the client is
+// also the resource owner) or is requesting access to protected
+// resources based on an authorization previously arranged with the
+// authorization server.
+//
+// -- http://tools.ietf.org/html/rfc6749#section-1.3.4
 package authorizations
 
 import "net/http"
@@ -102,183 +103,17 @@ var Handlers map[string]func(http.ResponseWriter, *http.Request) = map[string]fu
 	"DELETE": RevokeGrant,
 }
 
-// Grant authorizations to get access tokens.
+// 4. Obtaining Authorization
 //
-// 4.1.1.  Authorization Request
-// The client constructs the request URI by adding the following
-// parameters to the query component of the authorization endpoint URI
-// using the "application/x-www-form-urlencoded" format, per Appendix B:
+// To request an access token, the client obtains authorization from the
+// resource owner.  The authorization is expressed in the form of an
+// authorization grant, which the client uses to request the access
+// token.  OAuth defines four grant types: authorization code, implicit,
+// resource owner password credentials, and client credentials.  It also
+// provides an extension mechanism for defining additional grant types.
 //
-// response_type
-//       REQUIRED.  Value MUST be set to "code".
-//
-// client_id
-//       REQUIRED.  The client identifier as described in Section 2.2.
-//
-// redirect_uri
-//       OPTIONAL.  As described in Section 3.1.2.
-//
-// scope
-//       OPTIONAL.  The scope of the access request as described by Section 3.3.
-//
-// state
-//       RECOMMENDED.  An opaque value used by the client to maintain
-//       state between the request and callback.  The authorization
-//       server includes this value when redirecting the user-agent back
-//       to the client.  The parameter SHOULD be used for preventing
-//       cross-site request forgery as described in Section 10.12.
-//
-// The client directs the resource owner to the constructed URI using an
-// HTTP redirection response, or by other means available to it via the
-// user-agent.
-//
-// For example, the client directs the user-agent to make the following
-// HTTP request using TLS (with extra line breaks for display purposes
-// only):
-//
-//  GET /authorize?response_type=code&client_id=s6BhdRkqt3&state=xyz
-//      &redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb HTTP/1.1
-//  Host: server.example.com
-//
-// The authorization server validates the request to ensure that all
-// required parameters are present and valid.  If the request is valid,
-// the authorization server authenticates the resource owner and obtains
-// an authorization decision (by asking the resource owner or by
-// establishing approval via other means).
-//
-// When a decision is established, the authorization server directs the
-// user-agent to the provided client redirection URI using an HTTP
-// redirection response, or by other means available to it via the
-// user-agent.
-//
-// -- http://tools.ietf.org/html/rfc6749#section-4.1.1
-//
-// 4.1.2.  Authorization Response
-//
-// If the resource owner grants the access request, the authorization
-// server issues an authorization code and delivers it to the client by
-// adding the following parameters to the query component of the
-// redirection URI using the "application/x-www-form-urlencoded" format,
-// per Appendix B:
-//
-// code
-//       REQUIRED.  The authorization code generated by the
-//       authorization server.  The authorization code MUST expire
-//       shortly after it is issued to mitigate the risk of leaks.  A
-//       maximum authorization code lifetime of 10 minutes is
-//       RECOMMENDED.  The client MUST NOT use the authorization code
-//       more than once.  If an authorization code is used more than
-//       once, the authorization server MUST deny the request and SHOULD
-//       revoke (when possible) all tokens previously issued based on
-//       that authorization code.  The authorization code is bound to
-//       the client identifier and redirection URI.
-//
-// state
-//       REQUIRED if the "state" parameter was present in the client
-//       authorization request.  The exact value received from the
-//       client.
-//
-// For example, the authorization server redirects the user-agent by
-// sending the following HTTP response:
-//
-// HTTP/1.1 302 Found
-// Location: https://client.example.com/cb?code=SplxlOBeZQQYbYS6WxSbIA&state=xyz
-//    The client MUST ignore unrecognized response parameters.  The
-//    authorization code string size is left undefined by this
-//    specification.  The client should avoid making assumptions about code
-//    value sizes.  The authorization server SHOULD document the size of
-//    any value it issues.
-//
-// -- http://tools.ietf.org/html/rfc6749#section-4.1.2
-//
-// 4.1.2.1.  Error Response
-//
-// If the request fails due to a missing, invalid, or mismatching
-// redirection URI, or if the client identifier is missing or invalid,
-// the authorization server SHOULD inform the resource owner of the
-// error and MUST NOT automatically redirect the user-agent to the
-// invalid redirection URI.
-//
-// If the resource owner denies the access request or if the request
-// fails for reasons other than a missing or invalid redirection URI,
-// the authorization server informs the client by adding the following
-// parameters to the query component of the redirection URI using the
-// "application/x-www-form-urlencoded" format, per Appendix B:
-//
-// error
-//       REQUIRED.  A single ASCII [USASCII] error code from the
-//       following:
-//
-//       invalid_request
-//             The request is missing a required parameter, includes an
-//             invalid parameter value, includes a parameter more than
-//             once, or is otherwise malformed.
-//       unauthorized_client
-//             The client is not authorized to request an authorization
-//             code using this method.
-//
-//       access_denied
-//             The resource owner or authorization server denied the
-//             request.
-//
-//       unsupported_response_type
-//             The authorization server does not support obtaining an
-//             authorization code using this method.
-//
-//       invalid_scope
-//             The requested scope is invalid, unknown, or malformed.
-//
-//       server_error
-//             The authorization server encountered an unexpected
-//             condition that prevented it from fulfilling the request.
-//             (This error code is needed because a 500 Internal Server
-//             Error HTTP status code cannot be returned to the client
-//             via an HTTP redirect.)
-//
-//       temporarily_unavailable
-//             The authorization server is currently unable to handle
-//             the request due to a temporary overloading or maintenance
-//             of the server.  (This error code is needed because a 503
-//             Service Unavailable HTTP status code cannot be returned
-//             to the client via an HTTP redirect.)
-//
-//       Values for the "error" parameter MUST NOT include characters
-//       outside the set %x20-21 / %x23-5B / %x5D-7E.
-//
-// error_description
-//       OPTIONAL.  Human-readable ASCII [USASCII] text providing
-//       additional information, used to assist the client developer in
-//       understanding the error that occurred.
-//       Values for the "error_description" parameter MUST NOT include
-//       characters outside the set %x20-21 / %x23-5B / %x5D-7E.
-//
-// error_uri
-//       OPTIONAL.  A URI identifying a human-readable web page with
-//       information about the error, used to provide the client
-//       developer with additional information about the error.
-//       Values for the "error_uri" parameter MUST conform to the
-//       URI-reference syntax and thus MUST NOT include characters
-//       outside the set %x21 / %x23-5B / %x5D-7E.
-//
-// state
-//       REQUIRED if a "state" parameter was present in the client
-//       authorization request.  The exact value received from the
-//       client.
-//
-// For example, the authorization server redirects the user-agent by
-// sending the following HTTP response:
-//
-// HTTP/1.1 302 Found
-// Location: https://client.example.com/cb?error=access_denied&state=xyz
-//
-// -- http://tools.ietf.org/html/rfc6749#section-4.1.2.1
-//
+// -- http://tools.ietf.org/html/rfc6749#section-4
 func CreateGrant(w http.ResponseWriter, req *http.Request) {}
-
-func authCodeGrant(w http.ResponseWriter, req *http.Request)                 {}
-func implicitGrant(w http.ResponseWriter, req *http.Request)                 {}
-func resourceOwnerCredentialsGrant(w http.ResponseWriter, req *http.Request) {}
-func clientCredentialsGrant(w http.ResponseWriter, req *http.Request)        {}
 
 // Revoke blocks all associated tokens from making further requests.
 func RevokeGrant(w http.ResponseWriter, req *http.Request) {}

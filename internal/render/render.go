@@ -31,9 +31,8 @@ func JSON(w http.ResponseWriter, opts Options) error {
 	headers.Set("Content-Type", "application/json; charset=utf-8")
 
 	if opts.Cache {
-		headers.Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		headers.Set("Cache-Control", "no-store")
 		headers.Set("Pragma", "no-cache")
-		headers.Set("Expires", "0")
 	}
 
 	jsonBytes, err := json.Marshal(opts.Data)
