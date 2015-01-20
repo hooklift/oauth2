@@ -1,5 +1,12 @@
-// Package oauth2 implements a OAuth 2.0 authorization server
-// For details about the spec please refer to http://tools.ietf.org/html/rfc6749
+// Package oauth2 implements an OAuth 2.0 authorization server with support
+// for JWT tokens as well as token revokation.
+//
+// For details about the specs implemented please refer to
+// * http://tools.ietf.org/html/rfc6749
+// * http://tools.ietf.org/html/rfc6750
+// * https://tools.ietf.org/html/rfc7009
+// * https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-32
+// * https://tools.ietf.org/html/draft-ietf-oauth-jwt-bearer-12
 package oauth2
 
 import (
@@ -15,8 +22,9 @@ type option func(*handler)
 
 // Internal handler.
 type handler struct {
-	authEndpoint  string
-	tokenEndpoint string
+	authEndpoint   string
+	tokenEndpoint  string
+	revokeEndpoint string
 }
 
 // TokenEndpoint allows setting token endpoint. Defaults to "/oauth2/tokens".
@@ -55,12 +63,21 @@ func AuthEndpoint(endpoint string) option {
 	}
 }
 
+// RevokeEndpoint allows revoking tokens in accordance with https://tools.ietf.org/html/rfc7009
+// Defaults to "/oauth2/revoke"
+func RevokeEndpoint(endpoint string) option {
+	return func(h *handler) {
+		h.revokeEndpoint = endpoint
+	}
+}
+
 // Handler handles OAuth2 requests.
 func Handler(h http.Handler, opts ...option) http.Handler {
 	// Default configuration options.
 	handler := &handler{
-		tokenEndpoint: "/oauth2/tokens",
-		authEndpoint:  "/oauth2/authorizations",
+		tokenEndpoint:  "/oauth2/tokens",
+		authEndpoint:   "/oauth2/authorizations",
+		revokeEndpoint: "/oauth2/revoke",
 	}
 
 	// Applies user's configuration.
@@ -76,6 +93,9 @@ func Handler(h http.Handler, opts ...option) http.Handler {
 
 	// Locates and runs specific OAuth2 handler for request's method
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		//Forces client to use HTTPS
+		//w.Header().Set("Strict-Transport-Security", "max-age=31536000") // 1yr
+
 		for p, handlers := range registry {
 			if strings.HasPrefix(req.URL.Path, p) {
 				if handlerFn, ok := handlers[req.Method]; ok {
