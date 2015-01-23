@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 // Errors
@@ -29,6 +30,8 @@ type Options struct {
 	Template *template.Template
 	// Whether or not to cache the response, defaults to false.
 	Cache bool
+	// Strict Transport Security max age value
+	STSMaxAge time.Duration
 }
 
 func cache(headers http.Header, opts Options) {
@@ -76,6 +79,13 @@ func HTML(w http.ResponseWriter, opts Options) error {
 
 	headers := w.Header()
 	headers.Set("Content-Type", "text/html; charset=utf-8")
+
+	maxAge := strconv.FormatFloat(opts.STSMaxAge.Seconds(), 'f', -1, 64)
+	headers.Set("Strict-Transport-Security", "max-age="+maxAge)
+	headers.Set("X-Frame-Options", "SAMEORIGIN")
+	headers.Set("X-XSS-Protection", "1; mode=block")
+	headers.Set("X-Content-Type-Options", "nosniff")
+
 	cache(headers, opts)
 
 	if opts.Status <= 0 {
