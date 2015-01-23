@@ -29,6 +29,32 @@ func (c *OAuth2Client) Info() (oauth2.ClientInfo, error) {
 	}
 }
 
+// Implements oauth2.TokenManager
+type OAuth2Token struct{}
+
+func (t *OAuth2Token) Generate(tokenType oauth2.TokenType, scope string) (string, err) {
+	return "", nil
+}
+
+func (t *OAuth2Token) Revoke(token string) err {
+	return "", nil
+}
+
+func (t *OAuth2Token) Refresh(refreshToken, scope string) (string, err) {
+	return "", nil
+}
+
+// Implements oauth2.AuthzCodeManager
+type OAuth2AuthzCode struct{}
+
+func (t *OAuth2AuthzCode) Generate(clientID string) (string, err) {
+	return "", nil
+}
+
+func (t *OAuth2AuthzCode) Revoke(code string) err {
+	return "", nil
+}
+
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/hello", func(w http.ResponseWriter, req *http.Request) {
@@ -45,11 +71,11 @@ func main() {
 		oauth2.SetRevokeEndpoint("/oauth2/revoke"),
 		// Disables Strict Transport Security for development purposes
 		oauth2.SetSTSMaxAge(0),
-		// Sets authorization html form
+		// Sets authorization HTML form
 		oauth2.SetAuthzForm(authzForm),
 		oauth2.SetClientManager(client),
-		oauth2.SetAuthzCodeManager(client),
-		oauth2.SetTokenManager(blah),
+		oauth2.SetAuthzCodeManager(&OAuth2AuthzCode{}),
+		oauth2.SetTokenManager(&OAuth2Token{}),
 	)
 
 	log.Fatal(http.ListenAndServe(":3000", reqHandler))

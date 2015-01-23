@@ -5,35 +5,49 @@
 package render
 
 import (
+	"bytes"
 	"encoding/json"
-	"fmt"
+	"errors"
+	"html/template"
 	"net/http"
 	"strconv"
 )
 
+// Errors
+var (
+	ErrNilResponseWriter = errors.New("You must provide a valid http.ResponseWriter")
+	ErrNilHTMLTemplate   = errors.New("You must provide a valid HTML template")
+)
+
 // Options represents the set of values to pass when rendering content.
 type Options struct {
-	// HTTP status to return
+	// HTTP status to return.
 	Status int
-	// Content to serialize
+	// Content to serialize.
 	Data interface{}
-	// Whether or not to cache the response
+	// When rendering HTML, a HTML template is required.
+	Template *template.Template
+	// Whether or not to cache the response, defaults to false.
 	Cache bool
 }
 
-// JSON renders JSON content and sends it to the HTTP client. It supports caching.
+func cache(headers http.Header, opts Options) {
+	if opts.Cache {
+		headers.Set("Cache-Control", "no-store")
+		headers.Set("Pragma", "no-cache")
+		headers.Set("Expires", "0")
+	}
+}
+
+// JSON renders JSON content and sends it back to the HTTP client.
 func JSON(w http.ResponseWriter, opts Options) error {
 	if &w == nil {
-		return fmt.Errorf("You must provide a valid http.ResponseWriter")
+		return ErrNilResponseWriter
 	}
 
 	headers := w.Header()
 	headers.Set("Content-Type", "application/json; charset=utf-8")
-
-	if opts.Cache {
-		headers.Set("Cache-Control", "no-store")
-		headers.Set("Pragma", "no-cache")
-	}
+	cache(headers, opts)
 
 	jsonBytes, err := json.Marshal(opts.Data)
 	if err != nil {
@@ -46,6 +60,34 @@ func JSON(w http.ResponseWriter, opts Options) error {
 	}
 	w.WriteHeader(opts.Status)
 	w.Write(jsonBytes)
+
+	return nil
+}
+
+// HTML renders HTML content and sends it back to the HTTP client.
+func HTML(w http.ResponseWriter, opts Options) error {
+	if &w == nil {
+		return ErrNilResponseWriter
+	}
+
+	if opts.Template == nil {
+		return ErrNilHTMLTemplate
+	}
+
+	headers := w.Header()
+	headers.Set("Content-Type", "text/html; charset=utf-8")
+	cache(headers, opts)
+
+	if opts.Status <= 0 {
+		opts.Status = http.StatusOK
+	}
+
+	buf := new(bytes.Buffer)
+	opts.Template.Execute(buf, opts.Data)
+
+	headers.Set("Content-Length", strconv.Itoa(buf.Len()))
+	w.WriteHeader(opts.Status)
+	w.Write(buf.Bytes())
 
 	return nil
 }
