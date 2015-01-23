@@ -24,6 +24,10 @@ type AuthzFormData struct {
 	Scopes []Scope
 	// List of errors to display to the resource owner.
 	Errors []AuthzError
+	// Grant type is either "code" or "token" for implicit authorizations.
+	GrantType string
+	// State is an anti CSRF token sent by the 3rd-party client app
+	State string
 }
 
 // AuthzForm implements OAuth2's web flow for confidential clients,
@@ -34,26 +38,12 @@ func AuthzForm(w http.ResponseWriter, req *http.Request, cfg *config, _ http.Han
 	//  GET /oauth2/authzs?response_type=code&client_id=s6BhdRkqt3&state=xyz&
 	//  redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb HTTP/1.1
 	//  Host: api.hooklift.io
+
+	// TODO(c4milo): Check if there is a session, if not, redirect resource owner
+	// to login page.
 	query := req.URL.Query()
 
-	// response_type
-	// REQUIRED.  Value MUST be set to "code".Value MUST be set to "code".
-	grantType := query.Get("response_type")
-	if grantType != "code" && grantType != "token" {
-		render.HTML(w, render.Options{
-			Status: http.StatusOK,
-			Data: AuthzFormData{
-				Errors: []AuthzError{
-					ErrUnsupportedResponseType(state),
-				},
-			},
-			Template: cfg.authzForm,
-		})
-		return
-	}
-
-	// client_id
-	// REQUIRED.  The client identifier as described in Section 2.2.
+	// The client identifier as described in Section 2.2.
 	clientID := query.Get("client_id")
 
 	// If the client identifier is missing or invalid, the authorization server
@@ -64,7 +54,7 @@ func AuthzForm(w http.ResponseWriter, req *http.Request, cfg *config, _ http.Han
 			Status: http.StatusOK,
 			Data: AuthzFormData{
 				Errors: []AuthzError{
-					ErrClientIDMissing(state),
+					ErrClientIDMissing,
 				},
 			},
 			Template: cfg.authzForm,
@@ -78,7 +68,7 @@ func AuthzForm(w http.ResponseWriter, req *http.Request, cfg *config, _ http.Han
 			Status: http.StatusOK,
 			Data: AuthzFormData{
 				Errors: []AuthzError{
-					ErrServerError(state, err),
+					ErrServerError("", err),
 				},
 			},
 			Template: cfg.authzForm,
@@ -91,7 +81,7 @@ func AuthzForm(w http.ResponseWriter, req *http.Request, cfg *config, _ http.Han
 			Status: http.StatusOK,
 			Data: AuthzFormData{
 				Errors: []AuthzError{
-					ErrClientIDNotFound(state),
+					ErrClientIDNotFound,
 				},
 			},
 			Template: cfg.authzForm,
@@ -99,8 +89,7 @@ func AuthzForm(w http.ResponseWriter, req *http.Request, cfg *config, _ http.Han
 		return
 	}
 
-	// redirect_uri
-	// OPTIONAL.  As described in Section 3.1.2.
+	// As described in Section 3.1.2.
 	redirectURL := query.Get("redirect_uri")
 
 	// If the request fails due to a missing, invalid, or mismatching
@@ -116,41 +105,12 @@ func AuthzForm(w http.ResponseWriter, req *http.Request, cfg *config, _ http.Han
 			Status: http.StatusOK,
 			Data: AuthzFormData{
 				Errors: []AuthzError{
-					ErrRedirectURLMismatch(state),
+					ErrRedirectURLMismatch,
 				},
 			},
 			Template: cfg.authzForm,
 		})
 		return
-	}
-
-	// RECOMMENDED.  An opaque value used by the client to maintain
-	// state between the request and callback.  The authorization
-	// server includes this value when redirecting the user-agent back
-	// to the client.  The parameter SHOULD be used for preventing
-	// cross-site request forgery as described in Section 10.12.
-	state := query.Get("state")
-	if state == "" {
-		// TODO(c4milo): redirect to client callback URL with error
-	}
-
-	// scope
-	// OPTIONAL.  The scope of the access request as described by Section 3.3.
-	scope := query.Get("scope")
-	if scope == "" {
-		// TODO(c4milo): redirect user agent to client callback URL with access_denied error
-	}
-
-	scopes, err := cfg.scopeManager.ScopesInfo(scope)
-	if err != nil {
-		// TODO(c4milo): redirect user agent to client callback URL indicating an
-		// internal server error
-		return
-	}
-
-	formData := AuthzFormData{
-		Client: cinfo,
-		Scopes: scopes,
 	}
 
 	u, err := url.Parse(redirectURL)
@@ -159,7 +119,7 @@ func AuthzForm(w http.ResponseWriter, req *http.Request, cfg *config, _ http.Han
 			Status: http.StatusOK,
 			Data: AuthzFormData{
 				Errors: []AuthzError{
-					ErrRedirectURLInvalid(state),
+					ErrRedirectURLInvalid,
 				},
 			},
 			Template: cfg.authzForm,
@@ -167,19 +127,53 @@ func AuthzForm(w http.ResponseWriter, req *http.Request, cfg *config, _ http.Han
 		return
 	}
 
-	// query := u.Query()
-	// query.Set("code", "the actual grantCode")
-	// query.Set("state", state)
+	// An opaque value used by the client to maintain state between the request
+	// and callback.  The authorization server includes this value when redirecting
+	// the user-agent back to the client.  The parameter SHOULD be used for preventing
+	// cross-site request forgery as described in Section 10.12.
+	state := query.Get("state")
+	if state == "" {
+		EncodeErrInURI(u.Query(), ErrStateRequired(state))
+		http.Redirect(w, req, u.String(), http.StatusFound)
+	}
 
-	http.Redirect(w, req, u.String(), http.StatusMovedPermanently)
-	return
+	// response_type
+	// Value MUST be set to "code" or "token" for implicit authorizations.
+	grantType := query.Get("response_type")
+	if grantType != "code" && grantType != "token" {
+		EncodeErrInURI(u.Query(), ErrUnsupportedResponseType(state))
+		http.Redirect(w, req, u.String(), http.StatusFound)
+		return
+	}
 
-	// TODO(c4milo): Set security headers
-	// Strict-Transport-Security
-	// X-Frame-Options, Frame-Options
-	// X-XSS-Protection
-	// X-Content-Type-Options
+	// The scope of the access request as described by Section 3.3.
+	scope := query.Get("scope")
+	if scope == "" {
+		EncodeErrInURI(u.Query(), ErrScopeRequired(state))
+		http.Redirect(w, req, u.String(), http.StatusFound)
+		return
+	}
 
+	scopes, err := cfg.scopeManager.ScopesInfo(scope)
+	if err != nil {
+		EncodeErrInURI(u.Query(), ErrServerError(state, err))
+		http.Redirect(w, req, u.String(), http.StatusFound)
+		return
+	}
+
+	formData := AuthzFormData{
+		Client:    cinfo,
+		Scopes:    scopes,
+		GrantType: grantType,
+		State:     state,
+	}
+
+	render.HTML(w, render.Options{
+		Status:    http.StatusOK,
+		Data:      formData,
+		Template:  cfg.authzForm,
+		STSMaxAge: cfg.stsMaxAge,
+	})
 }
 
 func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, next http.Handler) {
