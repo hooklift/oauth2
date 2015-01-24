@@ -12,8 +12,8 @@ by passing a STS max-age of 0.
 in order to minimize risk of CSRF attacks.
 
 ## How to use
-1. This library was designed as a regular HTTP handler. An example about how to use
-in general terms is below:
+This library was designed as a regular Go's HTTP handler. An example about how to use,
+in general terms, is below:
 
 ```go
 package oauth2
@@ -36,8 +36,6 @@ func main() {
 	authzForm := []byte("<html><h1>App ABC wants to access XYZ...</h1></html>")
 	reqHandler := oauth2.Handler(
 		mux,
-		// Sets request context, this is use to check if there is a valid session or not
-		// before displaying the authorization form to the resource owner.
 		oauth2.SetTokenEndpoint("/oauth2/tokens"),
 		oauth2.SetAuthzEndpoint("/oauth2/authzs"),
 		oauth2.SetRevokeEndpoint("/oauth2/revoke"),
