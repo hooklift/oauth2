@@ -183,7 +183,7 @@ func Handler(next http.Handler, opts ...option) http.Handler {
 	}
 
 	// Keeps a registry of path function handlers for OAuth2 requests.
-	registry := map[string]map[string]func(http.ResponseWriter, *http.Request, *config, http.Handler){
+	registry := map[string]map[string]func(http.ResponseWriter, *http.Request, *config){
 		cfg.authzEndpoint: AuthzHandlers,
 		cfg.tokenEndpoint: TokenHandlers,
 		// TODO(c4milo): URL handlers for revoking tokens and grants
@@ -194,7 +194,7 @@ func Handler(next http.Handler, opts ...option) http.Handler {
 		for p, handlers := range registry {
 			if strings.HasPrefix(req.URL.Path, p) {
 				if handlerFn, ok := handlers[req.Method]; ok {
-					handlerFn(w, req, cfg, next)
+					handlerFn(w, req, cfg)
 					return
 				}
 				w.WriteHeader(http.StatusMethodNotAllowed)
@@ -202,5 +202,6 @@ func Handler(next http.Handler, opts ...option) http.Handler {
 				return
 			}
 		}
+		next.ServeHTTP(w, req)
 	})
 }

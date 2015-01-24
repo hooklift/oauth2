@@ -13,10 +13,8 @@ func main() {
 		w.Write([]byte("Hellow World!"))
 	})
 
-	client := NewOAuth2Client("1234")
-
 	authzForm := []byte("<html><h1>App ABC wants to access XYZ...</h1></html>")
-	reqHandler := oauth2.Handler(
+	handler := oauth2.Handler(
 		mux,
 		// Sets request context, this is use to check if there is a valid session or not
 		// before displaying the authorization form to the resource owner.
@@ -30,5 +28,5 @@ func main() {
 		oauth2.SetProvider(nil),
 	)
 
-	log.Fatal(http.ListenAndServe(":3000", reqHandler))
+	log.Fatal(http.ListenAndServe(":3000", handler))
 }
