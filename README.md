@@ -61,7 +61,7 @@ func main() {
 }
 ```
 
-Lastly, don't forget to implement the [Provider](https://github.com/hooklift/oauth2/blob/master/provider.go#L45-L83) interface :)
+Lastly, don't forget to implement the [Provider](https://github.com/hooklift/oauth2/blob/master/provider.go#L45-L85) interface :)
 
 TODO:
 * JSON Web Token (JWT): https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-32
