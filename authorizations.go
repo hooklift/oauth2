@@ -9,7 +9,7 @@ import (
 
 // Handlers is a map to functions where each function handles a particular HTTP
 // verb or method.
-var AuthzHandlers map[string]func(http.ResponseWriter, *http.Request, *config) = map[string]func(http.ResponseWriter, *http.Request, *config){
+var AuthzHandlers map[string]func(http.ResponseWriter, *http.Request, *config, http.Handler) = map[string]func(http.ResponseWriter, *http.Request, *config, http.Handler){
 	"GET":    AuthzForm,
 	"POST":   CreateGrant,
 	"DELETE": RevokeGrant,
@@ -33,7 +33,7 @@ type AuthzFormData struct {
 // AuthzForm implements OAuth2's web flow for confidential clients,
 // specifically http://tools.ietf.org/html/rfc6749#section-4.1.1 and
 // http://tools.ietf.org/html/rfc6749#section-4.2.1
-func AuthzForm(w http.ResponseWriter, req *http.Request, cfg *config) {
+func AuthzForm(w http.ResponseWriter, req *http.Request, cfg *config, _ http.Handler) {
 	// An example of what a request reaching this function looks like:
 	//  GET /oauth2/authzs?response_type=code&client_id=s6BhdRkqt3&state=xyz&
 	//  redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb HTTP/1.1
@@ -180,20 +180,19 @@ func AuthzForm(w http.ResponseWriter, req *http.Request, cfg *config) {
 	})
 }
 
-func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config) {
-
+func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, next http.Handler) {
 }
 
 // RevokeGrant invalidates all tokens issued with the given grant authorization code.
-func RevokeGrant(w http.ResponseWriter, req *http.Request, cfg *config) {
+func RevokeGrant(w http.ResponseWriter, req *http.Request, cfg *config, next http.Handler) {
 
 }
 
 // AuthCodeGrant implements http://tools.ietf.org/html/rfc6749#section-4.1.1 and
 // http://tools.ietf.org/html/rfc6749#section-4.2.1
-func authCodeGrant1(w http.ResponseWriter, req *http.Request, cfg *config) {
+func authCodeGrant1(w http.ResponseWriter, req *http.Request, cfg *config, next http.Handler) {
 }
 
 // ImplicitGrant implements http://tools.ietf.org/html/rfc6749#section-4.2
-func implicitGrant(w http.ResponseWriter, req *http.Request, cfg *config) {
+func implicitGrant(w http.ResponseWriter, req *http.Request, cfg *config, next http.Handler) {
 }
