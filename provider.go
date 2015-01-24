@@ -13,8 +13,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 // Client defines client information required by oauth2 to:
@@ -91,7 +89,6 @@ type config struct {
 	authzEndpoint  string
 	tokenEndpoint  string
 	revokeEndpoint string
-	ctx            context.Context
 	stsMaxAge      time.Duration
 	authzForm      *template.Template
 	provider       Provider
