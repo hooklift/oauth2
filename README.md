@@ -61,7 +61,7 @@ func main() {
 }
 ```
 
-2. Implement the [Provider](https://github.com/hooklift/oauth2/blob/master/provider.go#L45-L83) interface
+Lastly don't forget to implement the [Provider](https://github.com/hooklift/oauth2/blob/master/provider.go#L45-L83) interface :)
 
 TODO:
 * JSON Web Token (JWT): https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-32
@@ -69,4 +69,3 @@ TODO:
 *  OAuth 2.0 Dynamic Client Registration Protocol: https://tools.ietf.org/html/draft-ietf-oauth-dyn-reg-22
 * SAML 2.0 Profile for OAuth 2.0 Client Authentication and Authorization Grants: https://tools.ietf.org/html/draft-ietf-oauth-saml2-bearer-23
 
-## Examples
