@@ -1,5 +1,5 @@
 // Package oauth2 implements an OAuth 2.0 authorization server with support
-// for JWT tokens as well as token revokation.
+// for token revokation.
 //
 // For details about the specs implemented please refer to
 // * http://tools.ietf.org/html/rfc6749
@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"golang.org/x/net/context"
 )
 
 // Client defines client information required by oauth2 to:
@@ -28,39 +30,10 @@ type Client struct {
 	RedirectURL   string
 }
 
-// ClientManager defines the contract for getting oauth2 client information needed to
-// make oauth2 validations.
-type ClientManager interface {
-	// Client information pre-registered by the third-party integrator
-	ClientInfo(clientID string) (info Client, err error)
-}
-
-// AuthzCodeManager defines the contract for generating and storing authorization grants that are
-// going to be sent to clients.
-type AuthzCodeManager interface {
-	// Generate issues and stores an authorization grant code, in a persistent storage.
-	Generate(clientID, scopes []Scope) (code string, err error)
-	// Revoke expires the grant code as well as all access and refresh tokens generated with it.
-	Revoke(code string) error
-}
-
 // Scope defines a type for manipulating OAuth2 scopes.
 type Scope struct {
 	ID   string
 	Desc string
-}
-
-// Defines the contract for getting oauth2 scopes information, this is used
-// to precisely inform the resource owner about permissions the 3rd-party
-// client is requesting.
-type ScopeManager interface {
-	// ScopesInfo parses the list of scopes requested by the client and
-	// returns its descriptions for the resource owner to fully understand
-	// what he is authorizing the client to access to. An error is returned
-	// if the scopes list does not comply with http://tools.ietf.org/html/rfc6749#section-3.3
-	//
-	// Unrecognized or non-existent scopes are ignored.
-	ScopesInfo(scopes string) ([]Scope, error)
 }
 
 // Defines a type for the two defined token types in OAuth2.
@@ -71,30 +44,57 @@ const (
 	RefreshToken TokenType = "refresh"
 )
 
-type TokenManager interface {
-	// Generates and stores token.
-	Generate(tokenType TokenType, scopes []Scope) (token string, err error)
+type Provider interface {
+	// ClientInfo returns 3rd-party client information
+	ClientInfo(clientID string) (info Client, err error)
 
-	// Expires a specific token.
-	Revoke(token string) error
+	// GenAuthzCode issues and stores an authorization grant code, in a persistent storage.
+	GenAuthzCode(clientID, scopes []Scope) (code string, err error)
 
-	// Refreshes an access token
-	Refresh(refreshToken, scopes []Scope) (accessToken string, err error)
+	// RevokeAuthzCode expires the grant code as well as all access and refresh tokens generated with it.
+	RevokeAuthzCode(code string) error
+
+	// ScopesInfo parses the list of scopes requested by the client and
+	// returns its descriptions for the resource owner to fully understand
+	// what he is authorizing the client to access to. An error is returned
+	// if the scopes list does not comply with http://tools.ietf.org/html/rfc6749#section-3.3
+	//
+	// Unrecognized or non-existent scopes are ignored.
+	ScopesInfo(scopes string) ([]Scope, error)
+
+	// GenToken generates and stores token.
+	GenToken(tokenType TokenType, scopes []Scope) (token string, err error)
+
+	// RevokeToken expires a specific token.
+	RevokeToken(token string) error
+
+	// RefreshToken refreshes an access token.
+	RefreshToken(refreshToken, scopes []Scope) (accessToken string, err error)
+
+	// AuthzForm returns the HTML authorization form.
+	AuthzForm() string
+
+	// LoginURL returns the login URL for the resource owner to authenticate if there is
+	// not a valid session. The authentication system should send back the user
+	// to the referer URL in order to complete the OAuth2 authorization process.
+	LoginURL(refererURL string) (url string)
+
+	// CheckSession checks whether or not the resource owner has a valid session
+	// with the system. If not, it redirects the user to the login URL.
+	CheckSession() (invalid bool)
 }
 
 // http://commandcenter.blogspot.com/2014/01/self-referential-functions-and-design.html
 type option func(*config)
 
 type config struct {
-	authzEndpoint    string
-	tokenEndpoint    string
-	revokeEndpoint   string
-	stsMaxAge        time.Duration
-	authzForm        *template.Template
-	clientManager    ClientManager
-	authzCodeManager AuthzCodeManager
-	tokenManager     TokenManager
-	scopeManager     ScopeManager
+	authzEndpoint  string
+	tokenEndpoint  string
+	revokeEndpoint string
+	ctx            context.Context
+	stsMaxAge      time.Duration
+	authzForm      *template.Template
+	provider       Provider
 }
 
 // TokenEndpoint allows setting token endpoint. Defaults to "/oauth2/tokens".
@@ -133,22 +133,21 @@ func SetAuthzEndpoint(endpoint string) option {
 	}
 }
 
-// RevokeEndpoint allows revoking tokens in accordance with https://tools.ietf.org/html/rfc7009
-// Defaults to "/oauth2/revoke"
+// SetRevokeEndpoint allows setting a custom token revoke URI. Defaults to "/oauth2/revoke"
 func SetRevokeEndpoint(endpoint string) option {
 	return func(c *config) {
 		c.revokeEndpoint = endpoint
 	}
 }
 
-// Sets Strict Transport Security maximum age. Defaults to 1yr
+// SetSTSMaxAge sets Strict Transport Security maximum age. Defaults to 1yr
 func SetSTSMaxAge(maxAge time.Duration) option {
 	return func(c *config) {
 		c.stsMaxAge = maxAge
 	}
 }
 
-// Authorization form to show to the resource owner
+// SetAuthzForm sets authorization form to show to the resource owner
 func SetAuthzForm(form string) option {
 	return func(c *config) {
 		t := template.New("authzform")
@@ -157,36 +156,6 @@ func SetAuthzForm(form string) option {
 			log.Fatalln("Error parsing authorization form: %v", err)
 		}
 		c.authzForm = tpl
-	}
-}
-
-// Sets ClientManager implementation to use when authorizing oauth2 clients
-func SetClientManager(cm ClientManager) option {
-	return func(c *config) {
-		c.clientManager = cm
-	}
-}
-
-// Sets AuthzGrantManager implementation to use when generating or revoking
-// grant codes.
-func SetAuthzCodeManager(agm AuthzCodeManager) option {
-	return func(c *config) {
-		c.authzCodeManager = agm
-	}
-}
-
-// Sets TokenManager implementation to use when generating or revoking
-// access or refresh token.
-func SetTokenManager(tm TokenManager) option {
-	return func(c *config) {
-		c.tokenManager = tm
-	}
-}
-
-// Sets ScopeManager implementation to use in order to get scopes information.
-func SetScopeManager(sm ScopeManager) option {
-	return func(c *config) {
-		c.scopeManager = sm
 	}
 }
 
@@ -210,27 +179,15 @@ func Handler(next http.Handler, opts ...option) http.Handler {
 		log.Fatalln("Authorization form is required")
 	}
 
-	if cfg.clientManager == nil {
-		log.Fatalln("An implementation of the oauth2.ClientManager interface is expected")
-	}
-
-	if cfg.authzCodeManager == nil {
-		log.Fatalln("An implementation of the oauth2.AuthzCodeManager interface is expected")
-	}
-
-	if cfg.tokenManager == nil {
-		log.Fatalln("An implementation of the oauth2.TokenManager interface is expected")
-	}
-
-	if cfg.scopeManager == nil {
-		log.Fatalln("An implementation of the oauth2.ScopeManager interface is expected")
+	if cfg.provider == nil {
+		log.Fatalln("An implementation of the oauth2.Provider interface is expected")
 	}
 
 	// Keeps a registry of path function handlers for OAuth2 requests.
 	registry := map[string]map[string]func(http.ResponseWriter, *http.Request, *config, http.Handler){
 		cfg.authzEndpoint: AuthzHandlers,
 		cfg.tokenEndpoint: TokenHandlers,
-		// TODO(c4milo): handlers for revoking tokens and grants
+		// TODO(c4milo): URL handlers for revoking tokens and grants
 	}
 
 	// Locates and runs specific OAuth2 handler for request's method

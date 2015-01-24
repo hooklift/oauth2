@@ -1,14 +1,19 @@
 # OAuth2 provider for Go
 
-Implements OAuth2 in a somewhat strict manner. For instance:
+Implements an OAuth2 provider in a somewhat strict and opinionated manner. For instance:
 
-* Clients are required to always report the scopes they are trying to gain
+* 3rd party client apps are required to always report the scopes they are trying to gain
 access to when redirecting the resource owner to the authorization form.
-* Always sends by default a Strict Transport Security header. However, you can disable it
-by passing 0 as max-age.
+* Always sends a Strict Transport Security header by default. You can disable it
+by passing a STS max-age of 0.
 * X-Frame-Options header is always sent along the authorization form
-* X-XSS-Protection is always sent
-* Always requires 3rd-party clients to send the `state` request parameter in order to minimize risk of CSRF attacks
+* X-XSS-Protection is always sent.
+* Always requires 3rd-party client apps to send the `state` request parameter
+in order to minimize risk of CSRF attacks.
+* Requires passing a [request context](https://blog.golang.org/context) in order
+for the authorization server to determine whether or not the resource owner is
+authenticated and has valid session. Otherwise it redirects the resource owner to
+the login page.
 
 Implements:
 * The OAuth 2.0 Authorization Framework: http://tools.ietf.org/html/rfc6749

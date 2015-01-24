@@ -39,8 +39,12 @@ func AuthzForm(w http.ResponseWriter, req *http.Request, cfg *config, _ http.Han
 	//  redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb HTTP/1.1
 	//  Host: api.hooklift.io
 
-	// TODO(c4milo): Check if there is a session, if not, redirect resource owner
-	// to login page.
+	if invalid := cfg.provider.CheckSession(); invalid {
+		loginURL := cfg.provider.LoginURL(req.URL.String())
+		http.Redirect(w, req, loginURL, http.StatusFound)
+		return
+	}
+
 	query := req.URL.Query()
 
 	// The client identifier as described in Section 2.2.
@@ -62,7 +66,7 @@ func AuthzForm(w http.ResponseWriter, req *http.Request, cfg *config, _ http.Han
 		return
 	}
 
-	cinfo, err := cfg.clientManager.ClientInfo(clientID)
+	cinfo, err := cfg.provider.ClientInfo(clientID)
 	if err != nil {
 		render.HTML(w, render.Options{
 			Status: http.StatusOK,
@@ -154,7 +158,7 @@ func AuthzForm(w http.ResponseWriter, req *http.Request, cfg *config, _ http.Han
 		return
 	}
 
-	scopes, err := cfg.scopeManager.ScopesInfo(scope)
+	scopes, err := cfg.provider.ScopesInfo(scope)
 	if err != nil {
 		EncodeErrInURI(u.Query(), ErrServerError(state, err))
 		http.Redirect(w, req, u.String(), http.StatusFound)
