@@ -42,6 +42,8 @@ const (
 	RefreshToken TokenType = "refresh"
 )
 
+// Provider defines functions required by the oauth2 package to properly work.
+// Users of this package are required to implement them.
 type Provider interface {
 	// ClientInfo returns 3rd-party client information
 	ClientInfo(clientID string) (info Client, err error)
