@@ -53,8 +53,8 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.H
 		return
 	}
 
-	// Continue with implicit grant
 	if params["response_type"] == "token" {
+		// Continue with implicit grant flow
 		implicitGrant(w, req, cfg, authzData)
 		return
 	}
