@@ -35,6 +35,7 @@ type Scope struct {
 	Desc string
 }
 
+// AuthzCode represents an authorization code
 type AuthzCode struct {
 	Code        string
 	ExpiresIn   time.Duration
@@ -42,6 +43,7 @@ type AuthzCode struct {
 	RedirectURL *url.URL
 }
 
+// Token represents an access token.
 type Token struct {
 	Value     string
 	Type      string // bearer only for now.
@@ -110,12 +112,14 @@ type Provider interface {
 type option func(*config)
 
 type config struct {
-	authzEndpoint  string
-	tokenEndpoint  string
-	revokeEndpoint string
-	stsMaxAge      time.Duration
-	authzForm      *template.Template
-	provider       Provider
+	authzEndpoint   string
+	tokenEndpoint   string
+	revokeEndpoint  string
+	stsMaxAge       time.Duration
+	authzForm       *template.Template
+	provider        Provider
+	authzExpiration time.Duration
+	tokenExpiration time.Duration
 }
 
 // TokenEndpoint allows setting token endpoint. Defaults to "/oauth2/tokens".
@@ -154,21 +158,21 @@ func SetAuthzEndpoint(endpoint string) option {
 	}
 }
 
-// SetRevokeEndpoint allows setting a custom token revoke URI. Defaults to "/oauth2/revoke"
+// SetRevokeEndpoint allows setting a custom token revoke URI. Defaults to "/oauth2/revoke".
 func SetRevokeEndpoint(endpoint string) option {
 	return func(c *config) {
 		c.revokeEndpoint = endpoint
 	}
 }
 
-// SetSTSMaxAge sets Strict Transport Security maximum age. Defaults to 1yr
+// SetSTSMaxAge sets Strict Transport Security maximum age. Defaults to 1yr.
 func SetSTSMaxAge(maxAge time.Duration) option {
 	return func(c *config) {
 		c.stsMaxAge = maxAge
 	}
 }
 
-// SetAuthzForm sets authorization form to show to the resource owner
+// SetAuthzForm sets authorization form to show to the resource owner.
 func SetAuthzForm(form string) option {
 	return func(c *config) {
 		t := template.New("authzform")
@@ -177,6 +181,20 @@ func SetAuthzForm(form string) option {
 			log.Fatalln("Error parsing authorization form: %v", err)
 		}
 		c.authzForm = tpl
+	}
+}
+
+// SetTokenExpiration allows setting expiration time for access tokens.
+func SetTokenExpiration(e time.Duration) option {
+	return func(c *config) {
+		c.tokenExpiration = e
+	}
+}
+
+// SetAuthzExpiration allows setting expiration time for authorization grant codes.
+func SetAuthzExpiration(e time.Duration) option {
+	return func(c *config) {
+		c.authzExpiration = e
 	}
 }
 
