@@ -1,6 +1,6 @@
 # OAuth2 provider library for Go
 
-Implements an OAuth2 provider in a somewhat strict and opinionated manner. For instance:
+Implements an OAuth2 provider in a somewhat strict manner. For instance:
 
 * 3rd party client apps are required to always report the scopes they are trying to gain
 access to when redirecting the resource owner to the authorization form.
@@ -10,6 +10,7 @@ by passing a STS max-age of 0.
 * `X-XSS-Protection` is always sent.
 * Always requires 3rd-party client apps to send the `state` request parameter
 in order to minimize risk of CSRF attacks.
+* Always requires clients to use callback URLs with a HTTPS scheme.
 
 ## How to use
 This library was designed as a regular Go's HTTP handler. An example about how to use,
