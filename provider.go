@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -23,9 +24,9 @@ type Client struct {
 	ID            string
 	Name          string
 	Desc          string
-	ProfileImgURL string
-	HomepageURL   string
-	RedirectURL   string
+	ProfileImgURL *url.URL
+	HomepageURL   *url.URL
+	RedirectURL   *url.URL
 }
 
 // Scope defines a type for manipulating OAuth2 scopes.
@@ -34,7 +35,21 @@ type Scope struct {
 	Desc string
 }
 
-// Defines a type for the two defined token types in OAuth2.
+type AuthzCode struct {
+	Code        string
+	ExpiresIn   time.Duration
+	ClientID    string
+	RedirectURL *url.URL
+}
+
+type Token struct {
+	Value     string
+	Type      string // bearer only for now.
+	ExpiresIn time.Duration
+	Scope     []Scope
+}
+
+// TokenType defines a type for the two defined token types in OAuth2.
 type TokenType string
 
 const (
@@ -49,7 +64,14 @@ type Provider interface {
 	ClientInfo(clientID string) (info Client, err error)
 
 	// GenAuthzCode issues and stores an authorization grant code, in a persistent storage.
-	GenAuthzCode(clientID, scopes []Scope) (code string, err error)
+	// The authorization code MUST expire shortly after it is issued to mitigate
+	// the risk of leaks.  A maximum authorization code lifetime of 10 minutes is
+	// RECOMMENDED. If an authorization code is used more than once, the authorization
+	// server MUST deny the request and SHOULD revoke (when possible) all tokens
+	// previously issued based on that authorization code.  The authorization
+	// code is bound to the client identifier and redirection URI.
+	// -- http://tools.ietf.org/html/rfc6749#section-4.1.2
+	GenAuthzCode(client Client, scopes []Scope) (code AuthzCode, err error)
 
 	// RevokeAuthzCode expires the grant code as well as all access and refresh tokens generated with it.
 	RevokeAuthzCode(code string) error
@@ -63,13 +85,13 @@ type Provider interface {
 	ScopesInfo(scopes string) ([]Scope, error)
 
 	// GenToken generates and stores token.
-	GenToken(tokenType TokenType, scopes []Scope) (token string, err error)
+	GenToken(tokenType TokenType, scopes []Scope, client Client) (token Token, err error)
 
 	// RevokeToken expires a specific token.
 	RevokeToken(token string) error
 
 	// RefreshToken refreshes an access token.
-	RefreshToken(refreshToken, scopes []Scope) (accessToken string, err error)
+	RefreshToken(refreshToken, scopes []Scope) (accessToken Token, err error)
 
 	// AuthzForm returns the HTML authorization form.
 	AuthzForm() string
