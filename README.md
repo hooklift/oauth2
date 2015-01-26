@@ -59,6 +59,8 @@ Lastly, don't forget to implement the [Provider](https://github.com/hooklift/oau
 * OAuth 2.0 Bearer Token Usage: http://tools.ietf.org/html/rfc6750
 * OAuth 2.0 Token Revocation: https://tools.ietf.org/html/rfc7009
 
+Also implements some applicable considerations from: https://tools.ietf.org/html/rfc6819
+
 TODO:
 * JSON Web Token (JWT): https://tools.ietf.org/html/draft-ietf-oauth-json-web-token-32
 * JSON Web Token (JWT) Profile for OAuth 2.0 Client Authentication and Authorization Grants: https://tools.ietf.org/html/draft-ietf-oauth-jwt-bearer-12
