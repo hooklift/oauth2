@@ -5,29 +5,56 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-
 	"testing"
 )
 
 // TestAuthorizationGrant tests a happy authorization grant flow
 func TestAuthorizationGrant(t *testing.T) {
-	cfg := &config{}
 	provider := NewTestProvider()
-	cfg.provider = provider
+	tpl := `
+		<html>
+		<body>
+		{{if .Errors}}
+			<ul>
+			{{range .Errors}}
+				<li>{{.Code}}: {{.Desc}}</li>
+			{{end}}
+			</ul>
+		{{end}}
+		<form>
+		 <input type="hidden" name="client_id" value="{{.Client.ID}}"/>
+		 <input type="hidden" name="response_type" value="{{.GrantType}}"/>
+		 <input type="hidden" name="redirect_uri" value="{{.Client.RedirectURL}}"/>
+		 <input type="hidden" name="scope" value="{{StringifyScopes .Scopes}}"/>
+		 <input type="hidden" name="state" value="{{.State}}"/>
+		</form>
+		</body>
+		</html>
+	`
+
+	cfg := &config{
+		tokenEndpoint:  "/oauth2/tokens",
+		authzEndpoint:  "/oauth2/authzs",
+		revokeEndpoint: "/oauth2/revoke",
+	}
+
+	SetProvider(NewTestProvider())(cfg)
+	SetAuthzForm(tpl)(cfg)
 
 	state := "state-test"
 	scopes := "read write identity"
 	grantType := "code"
 
-	values := url.Values{}
-	values.Set("client_id", provider.client.ID)
-	values.Set("response_type", grantType)
-	values.Set("state", state)
-	values.Set("redirect_uri", provider.client.RedirectURL.String())
-	values.Set("scope", scopes)
+	values := url.Values{
+		"client_id":     {provider.client.ID},
+		"response_type": {grantType},
+		"state":         {state},
+		"redirect_uri":  {provider.client.RedirectURL.String()},
+		"scope":         {scopes},
+	}
 
 	req, err := http.NewRequest("GET",
-		"https://example.com/oauth2/authorize?"+values.Encode(), nil)
+		"https://example.com/oauth2/authzs?"+values.Encode(), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -36,9 +63,9 @@ func TestAuthorizationGrant(t *testing.T) {
 	CreateGrant(w, req, cfg, nil)
 
 	// Check that it returns authorization form with authzdata form included
-	// Figure out how to generate a CSRF token not tied to user's session
-	// send post request?
+	log.Printf("-> %s", w.Body.String())
 
+	// send post request?
 }
 
 // TestImplicitGrant tests a happy implicit flow

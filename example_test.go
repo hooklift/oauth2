@@ -28,6 +28,7 @@ func ExampleExamples() {
 		SetSTSMaxAge(0),
 		// Sets authorization HTML form
 		SetAuthzForm(authzForm),
+		//SetSecret("B4oitDPj=JYECrAZr*igmnbcJTguVvkYJXMVpdMoqe9doHXb4#"),
 		SetProvider(nil),
 	)
 

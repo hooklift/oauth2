@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"html/template"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -93,7 +94,9 @@ func HTML(w http.ResponseWriter, opts Options) error {
 	}
 
 	buf := new(bytes.Buffer)
-	opts.Template.Execute(buf, opts.Data)
+	if err := opts.Template.Execute(buf, opts.Data); err != nil {
+		log.Print("[ERROR] %v", err)
+	}
 
 	headers.Set("Content-Length", strconv.Itoa(buf.Len()))
 	w.WriteHeader(opts.Status)

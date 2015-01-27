@@ -29,13 +29,19 @@ type AuthzData struct {
 	Errors []AuthzError
 	// Grant type is either "code" or "token" for implicit authorizations.
 	GrantType string
-	// State is an anti CSRF token sent by the 3rd-party client app
+	// State can be used to store CSRF tokens by the 3rd-party client app
 	State string
 }
 
 // CreateGrant generates the authorization code for 3rd-party clients to use
 // in order to get access and refresh tokens, asking the resource owner for authorization.
 func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.Handler) {
+	if no := cfg.provider.IsUserAuthenticated(); no {
+		loginURL := cfg.provider.LoginURL(req.URL.String())
+		http.Redirect(w, req, loginURL, http.StatusFound)
+		return
+	}
+
 	vars := []string{"client_id", "state", "redirect_uri", "scope", "response_type"}
 	params := make(map[string]string)
 
@@ -62,6 +68,7 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.H
 	if req.Method == "GET" {
 		// Displays authorization form to resource owner in order for her to
 		// authorize 3rd-party client app.
+		// TODO(c4milo): Figure out how to generate a CSRF token not tied to user's session
 		render.HTML(w, render.Options{
 			Status:    http.StatusOK,
 			Data:      authzData,
@@ -81,9 +88,14 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.H
 	grantCode, err := cfg.provider.GenAuthzCode(authzData.Client, authzData.Scopes)
 	if err != nil {
 		render.HTML(w, render.Options{
-			Status:   http.StatusOK,
+			Status: http.StatusOK,
+			Data: AuthzData{
+				Errors: []AuthzError{
+					ErrServerError("", err),
+				}},
 			Template: cfg.authzForm,
 		})
+		return
 	}
 
 	u := authzData.Client.RedirectURL
@@ -96,12 +108,6 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.H
 // AuthCodeGrant1 implements http://tools.ietf.org/html/rfc6749#section-4.1.1 and
 // http://tools.ietf.org/html/rfc6749#section-4.2.1
 func authCodeGrant1(w http.ResponseWriter, req *http.Request, cfg *config, params map[string]string) *AuthzData {
-	if no := cfg.provider.IsUserAuthenticated(); no {
-		loginURL := cfg.provider.LoginURL(req.URL.String())
-		http.Redirect(w, req, loginURL, http.StatusFound)
-		return nil
-	}
-
 	// If the client identifier is missing or invalid, the authorization server
 	// SHOULD inform the resource owner of the error and MUST NOT automatically
 	// redirect the user-agent to the invalid redirection URI.
