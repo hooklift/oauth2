@@ -96,6 +96,6 @@ func (p *TestProvider) LoginURL(refererURL string) string {
 	return "https://www.example.com/accounts/login?redirect_to=" + refererURL
 }
 
-func (p *TestProvider) CheckUserSession() bool {
+func (p *TestProvider) IsUserAuthenticated() bool {
 	return false
 }

@@ -41,10 +41,12 @@ type AuthzCode struct {
 	ExpiresIn   time.Duration
 	ClientID    string
 	RedirectURL *url.URL
+	Scope       []Scope
 }
 
 // Token represents an access token.
 type Token struct {
+	ClientID  string
 	Value     string
 	Type      string // bearer only for now.
 	ExpiresIn time.Duration
@@ -103,9 +105,9 @@ type Provider interface {
 	// to the referer URL in order to complete the OAuth2 authorization process.
 	LoginURL(refererURL string) (url string)
 
-	// CheckSession checks whether or not the resource owner has a valid session
+	// IsUserAuthenticated checks whether or not the resource owner has a valid session
 	// with the system. If not, it redirects the user to the login URL.
-	CheckSession() (invalid bool)
+	IsUserAuthenticated() bool
 }
 
 // http://commandcenter.blogspot.com/2014/01/self-referential-functions-and-design.html
@@ -195,6 +197,13 @@ func SetTokenExpiration(e time.Duration) option {
 func SetAuthzExpiration(e time.Duration) option {
 	return func(c *config) {
 		c.authzExpiration = e
+	}
+}
+
+// SetProvider sets backend provider
+func SetProvider(p Provider) option {
+	return func(c *config) {
+		c.provider = p
 	}
 }
 

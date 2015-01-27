@@ -1,9 +1,43 @@
 package oauth2
 
-import "testing"
+import (
+	"log"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+
+	"testing"
+)
 
 // TestAuthorizationGrant tests a happy authorization grant flow
 func TestAuthorizationGrant(t *testing.T) {
+	cfg := &config{}
+	provider := NewTestProvider()
+	cfg.provider = provider
+
+	state := "state-test"
+	scopes := "read write identity"
+	grantType := "code"
+
+	values := url.Values{}
+	values.Set("client_id", provider.client.ID)
+	values.Set("response_type", grantType)
+	values.Set("state", state)
+	values.Set("redirect_uri", provider.client.RedirectURL.String())
+	values.Set("scope", scopes)
+
+	req, err := http.NewRequest("GET",
+		"https://example.com/oauth2/authorize?"+values.Encode(), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	w := httptest.NewRecorder()
+	CreateGrant(w, req, cfg, nil)
+
+	// Check that it returns authorization form with authzdata form included
+	// Figure out how to generate a CSRF token not tied to user's session
+	// send post request?
 
 }
 

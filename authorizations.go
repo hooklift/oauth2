@@ -96,7 +96,7 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.H
 // AuthCodeGrant1 implements http://tools.ietf.org/html/rfc6749#section-4.1.1 and
 // http://tools.ietf.org/html/rfc6749#section-4.2.1
 func authCodeGrant1(w http.ResponseWriter, req *http.Request, cfg *config, params map[string]string) *AuthzData {
-	if invalid := cfg.provider.CheckSession(); invalid {
+	if no := cfg.provider.IsUserAuthenticated(); no {
 		loginURL := cfg.provider.LoginURL(req.URL.String())
 		http.Redirect(w, req, loginURL, http.StatusFound)
 		return nil
