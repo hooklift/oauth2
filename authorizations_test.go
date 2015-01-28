@@ -1,33 +1,42 @@
 package oauth2
 
 import (
-	"log"
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
-// TestAuthorizationGrant tests a happy authorization grant flow
+func setup() {
+
+}
+
+// TestAuthorizationGrant tests a happy authorization grant flow in accordance with
+// http://tools.ietf.org/html/rfc6749#section-4.1
 func TestAuthorizationGrant(t *testing.T) {
 	provider := NewTestProvider()
 	tpl := `
 		<html>
 		<body>
 		{{if .Errors}}
-			<ul>
-			{{range .Errors}}
-				<li>{{.Code}}: {{.Desc}}</li>
-			{{end}}
-			</ul>
+			<div id="errors">
+				<ul>
+				{{range .Errors}}
+					<li>{{.Code}}: {{.Desc}}</li>
+				{{end}}
+				</ul>
+			</div>
+		{{else}}
+			<form>
+			 <input type="hidden" name="client_id" value="{{.Client.ID}}"/>
+			 <input type="hidden" name="response_type" value="{{.GrantType}}"/>
+			 <input type="hidden" name="redirect_uri" value="{{.Client.RedirectURL}}"/>
+			 <input type="hidden" name="scope" value="{{StringifyScopes .Scopes}}"/>
+			 <input type="hidden" name="state" value="{{.State}}"/>
+			</form>
 		{{end}}
-		<form>
-		 <input type="hidden" name="client_id" value="{{.Client.ID}}"/>
-		 <input type="hidden" name="response_type" value="{{.GrantType}}"/>
-		 <input type="hidden" name="redirect_uri" value="{{.Client.RedirectURL}}"/>
-		 <input type="hidden" name="scope" value="{{StringifyScopes .Scopes}}"/>
-		 <input type="hidden" name="state" value="{{.State}}"/>
-		</form>
 		</body>
 		</html>
 	`
@@ -53,19 +62,53 @@ func TestAuthorizationGrant(t *testing.T) {
 		"scope":         {scopes},
 	}
 
+	// http://tools.ietf.org/html/rfc6749#section-4.1.1
+	queryStr := values.Encode()
 	req, err := http.NewRequest("GET",
-		"https://example.com/oauth2/authzs?"+values.Encode(), nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+		"https://example.com/oauth2/authzs?"+queryStr, nil)
+	ok(t, err)
 
 	w := httptest.NewRecorder()
 	CreateGrant(w, req, cfg, nil)
+	statusCode := w.Code
+	assert(t, statusCode == http.StatusOK, "Does not look like we got a 200 status code: %d", statusCode)
 
-	// Check that it returns authorization form with authzdata form included
-	log.Printf("-> %s", w.Body.String())
+	body := w.Body.String()
+	stringz := []string{
+		"client_id",
+		"redirect_uri",
+		"response_type",
+		"state",
+		"scope",
+		"code",
+		"read write identity",
+		"state-test",
+	}
 
-	// send post request?
+	for _, s := range stringz {
+		assert(t, strings.Contains(body, s), "Does not look like we got an authorization form: '%s' was not found in %v", s, body)
+	}
+
+	// Sending post to acquire authorization token
+	buffer := bytes.NewBufferString(queryStr)
+	req, err = http.NewRequest("POST", "https://example.com/oauth2/authzs", buffer)
+	ok(t, err)
+
+	req.Header.Set("Content-type", "application/x-www-form-urlencoded")
+
+	w = httptest.NewRecorder()
+	CreateGrant(w, req, cfg, nil)
+
+	// Tests http://tools.ietf.org/html/rfc6749#section-4.1.2
+	equals(t, http.StatusFound, w.Code)
+
+	redirectTo := w.Header().Get("Location")
+	url, err := url.Parse(redirectTo)
+	ok(t, err)
+
+	authzCode := url.Query().Get("code")
+	assert(t, authzCode != "", "It looks like the authorization code came back empty: %s", authzCode)
+	equals(t, state, url.Query().Get("state"))
 }
 
 // TestImplicitGrant tests a happy implicit flow

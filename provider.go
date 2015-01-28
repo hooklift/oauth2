@@ -177,6 +177,10 @@ func SetSTSMaxAge(maxAge time.Duration) option {
 // helper function to stringify scopes in authorization template
 var funcMap template.FuncMap = template.FuncMap{
 	"StringifyScopes": func(scopes []Scope) string {
+		if len(scopes) <= 0 {
+			return ""
+		}
+
 		var scope string
 		for _, v := range scopes {
 			scope += v.ID + " "

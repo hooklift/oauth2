@@ -44,13 +44,9 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.H
 
 	vars := []string{"client_id", "state", "redirect_uri", "scope", "response_type"}
 	params := make(map[string]string)
-
 	for _, v := range vars {
-		if req.Method == "GET" {
-			params[v] = req.URL.Query().Get(v)
-		} else {
-			params[v] = req.FormValue(v)
-		}
+		// FormValue also parses query string if method is GET
+		params[v] = req.FormValue(v)
 	}
 
 	authzData := authCodeGrant1(w, req, cfg, params)
@@ -99,9 +95,12 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.H
 	}
 
 	u := authzData.Client.RedirectURL
-	u.Query().Add("code", grantCode.Code)
-	u.Query().Add("state", authzData.State)
+	query := u.Query()
+	query.Set("code", grantCode.Code)
+	query.Set("state", authzData.State)
+	u.RawQuery = query.Encode()
 
+	// log.Printf("[DEBUG] Redirect to: %s", u.String())
 	http.Redirect(w, req, u.String(), http.StatusFound)
 }
 
