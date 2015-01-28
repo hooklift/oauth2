@@ -134,8 +134,7 @@ func TestLoginRedirect(t *testing.T) {
 	// http://tools.ietf.org/html/rfc6749#section-4.1.1
 	queryStr := values.Encode()
 	authzURL := "https://example.com/oauth2/authzs?" + queryStr
-	req, err := http.NewRequest("GET",
-		authzURL, nil)
+	req, err := http.NewRequest("GET", authzURL, nil)
 	ok(t, err)
 
 	w := httptest.NewRecorder()
@@ -146,7 +145,75 @@ func TestLoginRedirect(t *testing.T) {
 
 // TestImplicitGrant tests a happy implicit flow
 func TestImplicitGrant(t *testing.T) {
+	provider, cfg := setupTest(true)
 
+	state := "state-test"
+	scopes := "read write identity"
+	grantType := "token"
+	clientID := provider.(*TestProvider).client.ID
+	redirectURL := provider.(*TestProvider).client.RedirectURL.String()
+
+	values := url.Values{
+		"client_id":     {clientID},
+		"response_type": {grantType},
+		"state":         {state},
+		"redirect_uri":  {redirectURL},
+		"scope":         {scopes},
+	}
+
+	// http://tools.ietf.org/html/rfc6749#section-4.2.1
+	queryStr := values.Encode()
+	authzURL := "https://example.com/oauth2/authzs?" + queryStr
+	req, err := http.NewRequest("GET", authzURL, nil)
+	ok(t, err)
+
+	w := httptest.NewRecorder()
+	CreateGrant(w, req, cfg, nil)
+	body := w.Body.String()
+	stringz := []string{
+		"client_id",
+		"redirect_uri",
+		"response_type",
+		"state",
+		"scope",
+		"token",
+		"read write identity",
+		"state-test",
+	}
+
+	for _, s := range stringz {
+		assert(t, strings.Contains(body, s), "Does not look like we got an authorization form: '%s' was not found in %v", s, body)
+	}
+
+	// Sending post to acquire authorization token
+	buffer := bytes.NewBufferString(queryStr)
+	req, err = http.NewRequest("POST", "https://example.com/oauth2/authzs", buffer)
+	ok(t, err)
+
+	req.Header.Set("Content-type", "application/x-www-form-urlencoded")
+
+	w = httptest.NewRecorder()
+	CreateGrant(w, req, cfg, nil)
+
+	// Tests http://tools.ietf.org/html/rfc6749#section-4.2.2
+	equals(t, http.StatusFound, w.Code)
+
+	redirectTo := w.Header().Get("Location")
+	u, err := url.Parse(redirectTo)
+	ok(t, err)
+
+	fragment, err := url.ParseQuery(strings.TrimPrefix(u.Fragment, "#"))
+	ok(t, err)
+	accessToken := fragment.Get("access_token")
+	assert(t, accessToken != "", "It looks like the authorization code came back empty: ->%s<-", accessToken)
+	equals(t, state, fragment.Get("state"))
+	equals(t, "600", fragment.Get("expires_in"))
+	equals(t, scopes, fragment.Get("scope"))
+	equals(t, "bearer", fragment.Get("token_type"))
+
+	// Implict flow should not emit refresh tokens
+	refreshToken := fragment.Get("refresh_token")
+	equals(t, "", refreshToken)
 }
 
 // TestReplayAttackMitigation tests that the authorization grant can be used

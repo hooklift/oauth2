@@ -1,11 +1,9 @@
 package oauth2
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/hooklift/oauth2/internal/render"
 )
@@ -55,12 +53,6 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.H
 		return
 	}
 
-	if params["response_type"] == "token" {
-		// Continue with implicit grant flow
-		implicitGrant(w, req, cfg, authzData)
-		return
-	}
-
 	if req.Method == "GET" {
 		// Displays authorization form to resource owner in order for her to
 		// authorize 3rd-party client app.
@@ -71,6 +63,12 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.H
 			Template:  cfg.authzForm,
 			STSMaxAge: cfg.stsMaxAge,
 		})
+		return
+	}
+
+	if params["response_type"] == "token" {
+		// Continue with implicit grant flow
+		implicitGrant(w, req, cfg, authzData)
 		return
 	}
 
@@ -260,11 +258,11 @@ func implicitGrant(w http.ResponseWriter, req *http.Request, cfg *config, authzD
 		return
 	}
 
-	query := new(url.Values)
+	query := url.Values{}
 	query.Set("access_token", token.Value)
 	query.Set("token_type", token.Type)
 	query.Set("expires_in", strconv.FormatFloat(token.ExpiresIn.Seconds(), 'f', -1, 64))
-	query.Set("scope", strings.Trim(fmt.Sprint(token.Scope), "[]"))
+	query.Set("scope", StringifyScopes(token.Scope))
 	query.Set("state", authzData.State)
 
 	u.Fragment = "#" + query.Encode()

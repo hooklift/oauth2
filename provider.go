@@ -174,23 +174,24 @@ func SetSTSMaxAge(maxAge time.Duration) option {
 	}
 }
 
-// helper function to stringify scopes in authorization template
-var funcMap template.FuncMap = template.FuncMap{
-	"StringifyScopes": func(scopes []Scope) string {
-		if len(scopes) <= 0 {
-			return ""
-		}
+// StringifyScopes is a helper function to stringify scope structs
+func StringifyScopes(scopes []Scope) string {
+	if len(scopes) <= 0 {
+		return ""
+	}
 
-		var scope string
-		for _, v := range scopes {
-			scope += v.ID + " "
-		}
-		return scope[:len(scope)-1] // removes last space
-	},
+	var scope string
+	for _, v := range scopes {
+		scope += v.ID + " "
+	}
+	return scope[:len(scope)-1] // removes last space
 }
 
 // SetAuthzForm sets authorization form to show to the resource owner.
 func SetAuthzForm(form string) option {
+	var funcMap template.FuncMap = template.FuncMap{
+		"StringifyScopes": StringifyScopes,
+	}
 	return func(c *config) {
 		t := template.New("authzform")
 		t.Funcs(funcMap)

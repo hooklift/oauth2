@@ -72,7 +72,7 @@ func (p *TestProvider) ScopesInfo(scopes string) ([]Scope, error) {
 func (p *TestProvider) GenToken(tokenType TokenType, scopes []Scope, client Client) (Token, error) {
 	t := Token{
 		Value:    uuid.NewV4().String(),
-		Type:     string(tokenType),
+		Type:     "bearer",
 		Scope:    scopes,
 		ClientID: client.ID,
 	}
