@@ -11,61 +11,17 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
-)
 
-// Client defines client information required by oauth2 to:
-//   * Show an authorization form to a resource owner
-//   * Validate that the provided request_uri parameter matches the one previously
-//     registered for the client.
-type Client struct {
-	ID            string
-	Name          string
-	Desc          string
-	ProfileImgURL *url.URL
-	HomepageURL   *url.URL
-	RedirectURL   *url.URL
-}
-
-// Scope defines a type for manipulating OAuth2 scopes.
-type Scope struct {
-	ID   string
-	Desc string
-}
-
-// AuthzCode represents an authorization code
-type AuthzCode struct {
-	Code        string
-	ExpiresIn   time.Duration
-	ClientID    string
-	RedirectURL *url.URL
-	Scope       []Scope
-}
-
-// Token represents an access token.
-type Token struct {
-	ClientID  string
-	Value     string
-	Type      string // bearer only for now.
-	ExpiresIn time.Duration
-	Scope     []Scope
-}
-
-// TokenType defines a type for the two defined token types in OAuth2.
-type TokenType string
-
-const (
-	AccessToken  TokenType = "access"
-	RefreshToken TokenType = "refresh"
+	"github.com/hooklift/oauth2/types"
 )
 
 // Provider defines functions required by the oauth2 package to properly work.
 // Users of this package are required to implement them.
 type Provider interface {
 	// ClientInfo returns 3rd-party client information
-	ClientInfo(clientID string) (info Client, err error)
+	ClientInfo(clientID string) (info types.Client, err error)
 
 	// GenAuthzCode issues and stores an authorization grant code, in a persistent storage.
 	// The authorization code MUST expire shortly after it is issued to mitigate
@@ -75,7 +31,7 @@ type Provider interface {
 	// previously issued based on that authorization code.  The authorization
 	// code is bound to the client identifier and redirection URI.
 	// -- http://tools.ietf.org/html/rfc6749#section-4.1.2
-	GenAuthzCode(client Client, scopes []Scope) (code AuthzCode, err error)
+	GenAuthzCode(client types.Client, scopes []types.Scope) (code types.AuthzCode, err error)
 
 	// RevokeAuthzCode expires the grant code as well as all access and refresh tokens generated with it.
 	RevokeAuthzCode(code string) error
@@ -86,16 +42,16 @@ type Provider interface {
 	// if the scopes list does not comply with http://tools.ietf.org/html/rfc6749#section-3.3
 	//
 	// Unrecognized or non-existent scopes are ignored.
-	ScopesInfo(scopes string) ([]Scope, error)
+	ScopesInfo(scopes string) ([]types.Scope, error)
 
 	// GenToken generates and stores token.
-	GenToken(tokenType TokenType, scopes []Scope, client Client) (token Token, err error)
+	GenToken(tokenType types.TokenType, scopes []types.Scope, client types.Client) (token types.Token, err error)
 
 	// RevokeToken expires a specific token.
 	RevokeToken(token string) error
 
 	// RefreshToken refreshes an access token.
-	RefreshToken(refreshToken, scopes []Scope) (accessToken Token, err error)
+	RefreshToken(refreshToken, scopes []types.Scope) (accessToken types.Token, err error)
 
 	// AuthzForm returns the HTML authorization form.
 	AuthzForm() string
@@ -175,7 +131,7 @@ func SetSTSMaxAge(maxAge time.Duration) option {
 }
 
 // StringifyScopes is a helper function to stringify scope structs
-func StringifyScopes(scopes []Scope) string {
+func StringifyScopes(scopes []types.Scope) string {
 	if len(scopes) <= 0 {
 		return ""
 	}

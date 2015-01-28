@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/hooklift/oauth2/internal/render"
+	"github.com/hooklift/oauth2/types"
 )
 
 // Handlers is a map to functions where each function handles a particular HTTP
@@ -20,9 +21,9 @@ var AuthzHandlers map[string]func(http.ResponseWriter, *http.Request, *config, h
 // that asks for authorization to the resource owner when using the web flow.
 type AuthzData struct {
 	// Client information.
-	Client Client
+	Client types.Client
 	// Requested scope access from 3rd-party client
-	Scopes []Scope
+	Scopes []types.Scope
 	// List of errors to display to the resource owner.
 	Errors []AuthzError
 	// Grant type is either "code" or "token" for implicit authorizations.
@@ -251,7 +252,7 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, cfg *config, param
 func implicitGrant(w http.ResponseWriter, req *http.Request, cfg *config, authzData *AuthzData) {
 	u := authzData.Client.RedirectURL
 
-	token, err := cfg.provider.GenToken(AccessToken, authzData.Scopes, authzData.Client)
+	token, err := cfg.provider.GenToken(types.AccessToken, authzData.Scopes, authzData.Client)
 	if err != nil {
 		EncodeErrInURI(u.Query(), ErrServerError(authzData.State, err))
 		http.Redirect(w, req, u.String(), http.StatusFound)

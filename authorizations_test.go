@@ -7,10 +7,12 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/hooklift/oauth2/providers/test"
 )
 
 func setupTest(isUserAuthenticated bool) (Provider, *config) {
-	provider := NewTestProvider(isUserAuthenticated)
+	provider := test.NewProvider(isUserAuthenticated)
 	tpl := `
 		<html>
 		<body>
@@ -57,10 +59,10 @@ func TestAuthorizationGrant(t *testing.T) {
 	grantType := "code"
 
 	values := url.Values{
-		"client_id":     {provider.(*TestProvider).client.ID},
+		"client_id":     {provider.(*test.Provider).Client.ID},
 		"response_type": {grantType},
 		"state":         {state},
-		"redirect_uri":  {provider.(*TestProvider).client.RedirectURL.String()},
+		"redirect_uri":  {provider.(*test.Provider).Client.RedirectURL.String()},
 		"scope":         {scopes},
 	}
 
@@ -120,8 +122,8 @@ func TestLoginRedirect(t *testing.T) {
 	state := "state-test"
 	scopes := "read write identity"
 	grantType := "code"
-	clientID := provider.(*TestProvider).client.ID
-	redirectURL := provider.(*TestProvider).client.RedirectURL.String()
+	clientID := provider.(*test.Provider).Client.ID
+	redirectURL := provider.(*test.Provider).Client.RedirectURL.String()
 
 	values := url.Values{
 		"client_id":     {clientID},
@@ -150,8 +152,8 @@ func TestImplicitGrant(t *testing.T) {
 	state := "state-test"
 	scopes := "read write identity"
 	grantType := "token"
-	clientID := provider.(*TestProvider).client.ID
-	redirectURL := provider.(*TestProvider).client.RedirectURL.String()
+	clientID := provider.(*test.Provider).Client.ID
+	redirectURL := provider.(*test.Provider).Client.RedirectURL.String()
 
 	values := url.Values{
 		"client_id":     {clientID},
@@ -216,6 +218,11 @@ func TestImplicitGrant(t *testing.T) {
 	equals(t, "", refreshToken)
 }
 
+// TestAuthzGrantExpiration makes sure that authorization codes are actually expired after used.
+func TestAuthzGrantExpiration(t *testing.T) {
+
+}
+
 // TestReplayAttackMitigation tests that the authorization grant can be used
 // only once, and that if there are attempts to use it multiple times, it is
 // revoked along with all the access tokens generated with it.
@@ -239,11 +246,6 @@ func TestAccessTokenOwnership(t *testing.T) {
 
 // TestAccessTokenExpiration makes sure that access tokens are actually expired.
 func TestAccessTokenExpiration(t *testing.T) {
-
-}
-
-// TestAuthzGrantExpiration makes sure that authorization codes are actually expired after used.
-func TestAuthzGrantExpiration(t *testing.T) {
 
 }
 
