@@ -35,7 +35,30 @@ func main() {
 
 	client := NewOAuth2Client("1234")
 
-	authzForm := []byte("<html><h1>App ABC wants to access XYZ...</h1></html>")
+	authzForm := []byte(`
+		<html>
+		<body>
+		{{if .Errors}}
+			<div id="errors">
+				<ul>
+				{{range .Errors}}
+					<li>{{.Code}}: {{.Desc}}</li>
+				{{end}}
+				</ul>
+			</div>
+		{{else}}
+			<form>
+			 <input type="hidden" name="client_id" value="{{.Client.ID}}"/>
+			 <input type="hidden" name="response_type" value="{{.GrantType}}"/>
+			 <input type="hidden" name="redirect_uri" value="{{.Client.RedirectURL}}"/>
+			 <input type="hidden" name="scope" value="{{StringifyScopes .Scopes}}"/>
+			 <input type="hidden" name="state" value="{{.State}}"/>
+			</form>
+		{{end}}
+		</body>
+		</html>
+	`)
+
 	reqHandler := oauth2.Handler(
 		mux,
 		oauth2.SetTokenEndpoint("/oauth2/tokens"),
