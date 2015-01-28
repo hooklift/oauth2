@@ -17,7 +17,7 @@ This library was designed as a regular Go's HTTP handler. An example about how t
 in general terms, is below:
 
 ```go
-package oauth2
+package main
 
 import (
 	"log"
@@ -33,9 +33,7 @@ func main() {
 		w.Write([]byte("Hellow World!"))
 	})
 
-	client := NewOAuth2Client("1234")
-
-	authzForm := []byte(`
+	authzForm := `
 		<html>
 		<body>
 		{{if .Errors}}
@@ -57,7 +55,7 @@ func main() {
 		{{end}}
 		</body>
 		</html>
-	`)
+	`
 
 	reqHandler := oauth2.Handler(
 		mux,
