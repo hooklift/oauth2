@@ -9,14 +9,8 @@ import (
 	"testing"
 )
 
-func setup() {
-
-}
-
-// TestAuthorizationGrant tests a happy authorization grant flow in accordance with
-// http://tools.ietf.org/html/rfc6749#section-4.1
-func TestAuthorizationGrant(t *testing.T) {
-	provider := NewTestProvider()
+func setupTest(isUserAuthenticated bool) (Provider, *config) {
+	provider := NewTestProvider(isUserAuthenticated)
 	tpl := `
 		<html>
 		<body>
@@ -47,18 +41,26 @@ func TestAuthorizationGrant(t *testing.T) {
 		revokeEndpoint: "/oauth2/revoke",
 	}
 
-	SetProvider(NewTestProvider())(cfg)
+	SetProvider(provider)(cfg)
 	SetAuthzForm(tpl)(cfg)
+
+	return provider, cfg
+}
+
+// TestAuthorizationGrant tests a happy web authorization flow in accordance with
+// http://tools.ietf.org/html/rfc6749#section-4.1
+func TestAuthorizationGrant(t *testing.T) {
+	provider, cfg := setupTest(true)
 
 	state := "state-test"
 	scopes := "read write identity"
 	grantType := "code"
 
 	values := url.Values{
-		"client_id":     {provider.client.ID},
+		"client_id":     {provider.(*TestProvider).client.ID},
 		"response_type": {grantType},
 		"state":         {state},
-		"redirect_uri":  {provider.client.RedirectURL.String()},
+		"redirect_uri":  {provider.(*TestProvider).client.RedirectURL.String()},
 		"scope":         {scopes},
 	}
 
@@ -70,8 +72,7 @@ func TestAuthorizationGrant(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	CreateGrant(w, req, cfg, nil)
-	statusCode := w.Code
-	assert(t, statusCode == http.StatusOK, "Does not look like we got a 200 status code: %d", statusCode)
+	equals(t, http.StatusOK, w.Code)
 
 	body := w.Body.String()
 	stringz := []string{
@@ -109,6 +110,38 @@ func TestAuthorizationGrant(t *testing.T) {
 	authzCode := url.Query().Get("code")
 	assert(t, authzCode != "", "It looks like the authorization code came back empty: %s", authzCode)
 	equals(t, state, url.Query().Get("state"))
+}
+
+// TestLoginRedirect tests that logging in is required for a resource owner to
+// grant any authorization codes to clients.
+func TestLoginRedirect(t *testing.T) {
+	provider, cfg := setupTest(false)
+
+	state := "state-test"
+	scopes := "read write identity"
+	grantType := "code"
+	clientID := provider.(*TestProvider).client.ID
+	redirectURL := provider.(*TestProvider).client.RedirectURL.String()
+
+	values := url.Values{
+		"client_id":     {clientID},
+		"response_type": {grantType},
+		"state":         {state},
+		"redirect_uri":  {redirectURL},
+		"scope":         {scopes},
+	}
+
+	// http://tools.ietf.org/html/rfc6749#section-4.1.1
+	queryStr := values.Encode()
+	authzURL := "https://example.com/oauth2/authzs?" + queryStr
+	req, err := http.NewRequest("GET",
+		authzURL, nil)
+	ok(t, err)
+
+	w := httptest.NewRecorder()
+	CreateGrant(w, req, cfg, nil)
+	equals(t, http.StatusFound, w.Code)
+	equals(t, provider.LoginURL(authzURL), w.Header().Get("Location"))
 }
 
 // TestImplicitGrant tests a happy implicit flow

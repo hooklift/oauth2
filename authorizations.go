@@ -36,7 +36,7 @@ type AuthzData struct {
 // CreateGrant generates the authorization code for 3rd-party clients to use
 // in order to get access and refresh tokens, asking the resource owner for authorization.
 func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.Handler) {
-	if no := cfg.provider.IsUserAuthenticated(); no {
+	if yes := cfg.provider.IsUserAuthenticated(); !yes {
 		loginURL := cfg.provider.LoginURL(req.URL.String())
 		http.Redirect(w, req, loginURL, http.StatusFound)
 		return
