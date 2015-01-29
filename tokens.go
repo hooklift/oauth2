@@ -2,25 +2,21 @@ package oauth2
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/hooklift/oauth2/internal/render"
+	"github.com/hooklift/oauth2/pkg"
 	"github.com/hooklift/oauth2/types"
 )
 
-// Handlers is a map to functions where each function handles a particular HTTP
+// TokenHandlers is a map to functions where each function handles a particular HTTP
 // verb or method.
 var TokenHandlers map[string]func(http.ResponseWriter, *http.Request, Provider) = map[string]func(http.ResponseWriter, *http.Request, Provider){
 	"POST": IssueAccessToken,
 }
 
-// Implements http://tools.ietf.org/html/rfc6749#section-4.1.3,
-// http://tools.ietf.org/html/rfc6749#section-4.1.4 and
-// http://tools.ietf.org/html/rfc6749#section-5.2
-//
-// Implementation notes:
-//  * Ignores client_id as we are always requiring the client to authenticate
-//  * Ignores redirect_uri as we force a static and pre-registered redirect URI for the client
-func authCodeGrant2(w http.ResponseWriter, req *http.Request, provider Provider) {
+// IssueAccessToken handles all requests going to tokens endpoint.
+func IssueAccessToken(w http.ResponseWriter, req *http.Request, provider Provider) {
 	username, password, ok := req.BasicAuth()
 	cinfo, err := provider.AuthenticateClient(username, password)
 	if !ok || err != nil {
@@ -31,6 +27,33 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, provider Provider)
 		return
 	}
 
+	grantType := req.FormValue("grant_type")
+	switch grantType {
+	case "authorization_code":
+		authCodeGrant2(w, req, provider, cinfo)
+	case "client_credentials":
+		clientCredentialsGrant(w, req, provider, cinfo)
+	case "password":
+		resourceOwnerCredentialsGrant(w, req, provider, cinfo)
+	case "refresh_token":
+		refreshToken(w, req, provider, cinfo)
+	default:
+		render.JSON(w, render.Options{
+			Status: http.StatusBadRequest,
+			Data:   ErrUnsupportedGrantType,
+		})
+		return
+	}
+}
+
+// Implements http://tools.ietf.org/html/rfc6749#section-4.1.3,
+// http://tools.ietf.org/html/rfc6749#section-4.1.4 and
+// http://tools.ietf.org/html/rfc6749#section-5.2
+//
+// Implementation notes:
+//  * Ignores client_id as we are always requiring the client to authenticate
+//  * Ignores redirect_uri as we force a static and pre-registered redirect URI for the client
+func authCodeGrant2(w http.ResponseWriter, req *http.Request, provider Provider, cinfo types.Client) {
 	code := req.FormValue("code")
 	if code == "" {
 		err := ErrUnauthorizedClient
@@ -116,17 +139,7 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, provider Provider)
 }
 
 // Implements http://tools.ietf.org/html/rfc6749#section-4.3
-func resourceOwnerCredentialsGrant(w http.ResponseWriter, req *http.Request, provider Provider) {
-	username, password, ok := req.BasicAuth()
-	cinfo, err := provider.AuthenticateClient(username, password)
-	if !ok || err != nil {
-		render.JSON(w, render.Options{
-			Status: http.StatusBadRequest,
-			Data:   ErrUnauthorizedClient,
-		})
-		return
-	}
-
+func resourceOwnerCredentialsGrant(w http.ResponseWriter, req *http.Request, provider Provider, cinfo types.Client) {
 	if ok := provider.AuthenticateUser(req.FormValue("username"), req.FormValue("password")); !ok {
 		render.JSON(w, render.Options{
 			Status: http.StatusBadRequest,
@@ -165,17 +178,7 @@ func resourceOwnerCredentialsGrant(w http.ResponseWriter, req *http.Request, pro
 }
 
 // Implements http://tools.ietf.org/html/rfc6749#section-4.4
-func clientCredentialsGrant(w http.ResponseWriter, req *http.Request, provider Provider) {
-	username, password, ok := req.BasicAuth()
-	cinfo, err := provider.AuthenticateClient(username, password)
-	if !ok || err != nil {
-		render.JSON(w, render.Options{
-			Status: http.StatusBadRequest,
-			Data:   ErrUnauthorizedClient,
-		})
-		return
-	}
-
+func clientCredentialsGrant(w http.ResponseWriter, req *http.Request, provider Provider, cinfo types.Client) {
 	scope := req.FormValue("scope")
 	var scopes []types.Scope
 	if scope != "" {
@@ -205,31 +208,73 @@ func clientCredentialsGrant(w http.ResponseWriter, req *http.Request, provider P
 	})
 }
 
-// Implements http://tools.ietf.org/html/rfc6749#section-5
-func IssueAccessToken(w http.ResponseWriter, req *http.Request, provider Provider) {
-	grantType := req.FormValue("grant_type")
-
-	switch grantType {
-	case "authorization_code":
-		authCodeGrant2(w, req, provider)
-	case "client_credentials":
-		clientCredentialsGrant(w, req, provider)
-	case "password":
-		resourceOwnerCredentialsGrant(w, req, provider)
-	case "refresh_token":
-		refreshToken(w, req, provider)
-	default:
+// Implements http://tools.ietf.org/html/rfc6749#section-6
+func refreshToken(w http.ResponseWriter, req *http.Request, provider Provider, cinfo types.Client) {
+	code := req.FormValue("refresh_token")
+	token, err := provider.TokenInfo(cinfo, code)
+	if err != nil {
 		render.JSON(w, render.Options{
-			Status: http.StatusBadRequest,
-			Data:   ErrUnsupportedGrantType,
+			Status: http.StatusInternalServerError,
+			Data:   ErrServerError("", err),
 		})
 		return
 	}
-}
 
-// Implements http://tools.ietf.org/html/rfc6749#section-6
-func refreshToken(w http.ResponseWriter, req *http.Request, provider Provider) {
+	scope := req.FormValue("scope")
+	var scopes []types.Scope
+	if scope != "" {
+		var err error
+		scopes, err = provider.ScopesInfo(scope)
+		if err != nil {
+			render.JSON(w, render.Options{
+				Status: http.StatusInternalServerError,
+				Data:   ErrServerError("", err),
+			})
+			return
+		}
+
+		// The requested scope MUST NOT include any scope not originally granted
+		// by the resource owner, and if omitted is treated as equal to the scope
+		// originally granted by the resource owner.
+		tscopes := pkg.StringifyScopes(token.Scope)
+		for _, s := range scopes {
+			// TODO(c4milo): make more robust
+			if !strings.Contains(tscopes, s.ID) {
+				render.JSON(w, render.Options{
+					Status: http.StatusBadRequest,
+					Data:   ErrInvalidScope,
+				})
+				return
+			}
+		}
+	}
+
+	if len(scopes) == 0 {
+		scopes = token.Scope
+	}
+
+	if token.ClientID != cinfo.ID {
+		render.JSON(w, render.Options{
+			Status: http.StatusBadRequest,
+			Data:   ErrClientIDMismatch,
+		})
+		return
+	}
+
+	newToken, err := provider.RefreshToken(token, scopes)
+	if err != nil {
+		render.JSON(w, render.Options{
+			Status: http.StatusInternalServerError,
+			Data:   ErrServerError("", err),
+		})
+		return
+	}
+
+	render.JSON(w, render.Options{
+		Status: http.StatusOK,
+		Data:   newToken,
+	})
 }
 
 // Implements https://tools.ietf.org/html/rfc7009
-func revokeToken(w http.ResponseWriter, req *http.Request, provider Provider) {}
+func revokeToken(w http.ResponseWriter, req *http.Request, provider Provider, cinfo types.Client) {}

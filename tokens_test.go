@@ -123,6 +123,43 @@ func TestClientCredentialsGrant(t *testing.T) {
 	equals(t, "", accessToken.RefreshToken)
 }
 
+func TestRefreshToken(t *testing.T) {
+	provider := test.NewProvider(true)
+	accessToken, err := provider.GenToken([]types.Scope{
+		types.Scope{
+			ID: "identity",
+		}}, types.Client{
+		ID: "test_client_id",
+	}, true)
+	ok(t, err)
+
+	queryStr := url.Values{
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {accessToken.RefreshToken},
+		"scope":         {"identity"},
+	}
+
+	buffer := bytes.NewBufferString(queryStr.Encode())
+	req, err := http.NewRequest("POST", "https://example.com/oauth2/tokens", buffer)
+	ok(t, err)
+	req.Header.Set("Content-type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth("testclient", "testclient")
+
+	w := httptest.NewRecorder()
+	IssueAccessToken(w, req, provider)
+
+	token := types.Token{}
+	err = json.Unmarshal(w.Body.Bytes(), &token)
+	ok(t, err)
+
+	//log.Printf("%s", w.Body.String())
+	equals(t, "bearer", token.Type)
+	equals(t, "600", token.ExpiresIn)
+	assert(t, accessToken.Value != token.Value, "We got the same access token, it should be different!")
+	assert(t, token.Value != "", "We were expecting to get a token and instead we got: %s", token.Value)
+	assert(t, token.RefreshToken != accessToken.RefreshToken, "We got the same refresh token, it should be different!")
+}
+
 // TestAuthzCodeOwnership tests that the authorization code was issued to the client
 // requesting the access token.
 func TestAuthzCodeOwnership(t *testing.T) {

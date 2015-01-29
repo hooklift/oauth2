@@ -62,6 +62,16 @@ var (
 		Code: "access_denied",
 		Desc: "Resource owner credentials are invalid.",
 	}
+
+	ErrInvalidScope = AuthzError{
+		Code: "invalid_scope",
+		Desc: "Scope exceeds the scope granted by the resource owner.",
+	}
+
+	ErrClientIDMismatch = AuthzError{
+		Code: "invalid_request",
+		Desc: "Authenticated client did not generate refresh token used.",
+	}
 )
 
 // Encodes errors as query string values in accordance to http://tools.ietf.org/html/rfc6749#section-4.1.2.1

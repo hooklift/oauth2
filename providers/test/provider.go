@@ -97,8 +97,13 @@ func (p *Provider) RevokeToken(token string) error {
 	return nil
 }
 
-func (p *Provider) RefreshToken(refreshToken, scopes []types.Scope) (types.Token, error) {
-	return types.Token{}, nil
+func (p *Provider) RefreshToken(refreshToken types.Token, scopes []types.Scope) (types.Token, error) {
+	// Revokes existing refresh token
+	delete(p.RefreshTokens, refreshToken.Value)
+
+	return p.GenToken(scopes, types.Client{
+		ID: refreshToken.ClientID,
+	}, true)
 }
 
 func (p *Provider) AuthzForm() *template.Template {
@@ -206,6 +211,14 @@ func (p *Provider) AuthenticateClient(username, password string) (types.Client, 
 
 func (p *Provider) GrantInfo(client types.Client, code string) (types.GrantCode, error) {
 	return p.GrantCodes[code], nil
+}
+
+func (p *Provider) TokenInfo(client types.Client, code string) (types.Token, error) {
+	if v, ok := p.AccessTokens[code]; ok {
+		return v, nil
+	}
+
+	return p.RefreshTokens[code], nil
 }
 
 func (p *Provider) AuthenticateUser(username, password string) bool {

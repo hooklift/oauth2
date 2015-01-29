@@ -48,7 +48,7 @@ type Provider interface {
 	RevokeToken(token string) error
 
 	// RefreshToken refreshes an access token.
-	RefreshToken(refreshToken, scopes []types.Scope) (accessToken types.Token, err error)
+	RefreshToken(refreshToken types.Token, scopes []types.Scope) (accessToken types.Token, err error)
 
 	// AuthzForm returns the HTML authorization form.
 	AuthzForm() *template.Template
@@ -102,6 +102,9 @@ type Provider interface {
 
 	// GrantInfo returns information about the authorization grant code.
 	GrantInfo(client types.Client, code string) (types.GrantCode, error)
+
+	// TokenInfo returns information about one specific token.
+	TokenInfo(client types.Client, code string) (types.Token, error)
 }
 
 // Handler handles OAuth2 requests.
