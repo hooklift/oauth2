@@ -36,7 +36,7 @@ type Options struct {
 }
 
 func cache(headers http.Header, opts Options) {
-	if opts.Cache {
+	if !opts.Cache {
 		headers.Set("Cache-Control", "no-store")
 		headers.Set("Pragma", "no-cache")
 		headers.Set("Expires", "0")

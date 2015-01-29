@@ -8,10 +8,11 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/hooklift/oauth2/providers/test"
 	"github.com/hooklift/oauth2/types"
 )
 
-func AccessTokenRequest(t *testing.T, grantType, authzCode string) *http.Request {
+func AuthzGrantTokenRequestTest(t *testing.T, grantType, authzCode string) *http.Request {
 	// http://tools.ietf.org/html/rfc6749#section-4.1.3
 	queryStr := url.Values{
 		"grant_type":   {grantType},
@@ -30,10 +31,10 @@ func AccessTokenRequest(t *testing.T, grantType, authzCode string) *http.Request
 // TestAccessToken tests a happy path for getting access tokens in accordance with
 // http://tools.ietf.org/html/rfc6749#section-4.1.3 and
 // http://tools.ietf.org/html/rfc6749#section-4.1.4
-func TestAccessTokenRequest(t *testing.T) {
+func TestAuthzGrantTokenRequest(t *testing.T) {
 	provider, authzCode := getTestAuthzCode(t)
 
-	req := AccessTokenRequest(t, "authorization_code", authzCode)
+	req := AuthzGrantTokenRequestTest(t, "authorization_code", authzCode)
 	req.SetBasicAuth("testclient", "testclient")
 
 	w := httptest.NewRecorder()
@@ -51,10 +52,10 @@ func TestAccessTokenRequest(t *testing.T) {
 
 // TestClientAuthRequired tests that client is required to always authenticate in order
 // to request access tokens.
-func TestClientAuthRequired(t *testing.T) {
+func TestAuthzGrantClientAuthRequired(t *testing.T) {
 	provider, authzCode := getTestAuthzCode(t)
 
-	req := AccessTokenRequest(t, "authorization_code", authzCode)
+	req := AuthzGrantTokenRequestTest(t, "authorization_code", authzCode)
 
 	w := httptest.NewRecorder()
 	IssueAccessToken(w, req, provider)
@@ -65,6 +66,33 @@ func TestClientAuthRequired(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &appErr)
 	ok(t, err)
 	equals(t, "unauthorized_client", appErr.Code)
+}
+
+// TestPasswordGrantTokenRequest tests happy path for http://tools.ietf.org/html/rfc6749#section-4.3
+func TestResourceOwnerCredentialsTokenRequest(t *testing.T) {
+	provider := test.NewProvider(true)
+	queryStr := url.Values{
+		"grant_type": {"password"},
+		"username":   {"test_user"},
+		"password":   {"test_password"},
+	}
+
+	buffer := bytes.NewBufferString(queryStr.Encode())
+	req, err := http.NewRequest("POST", "https://example.com/oauth2/tokens", buffer)
+	ok(t, err)
+	req.Header.Set("Content-type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth("testclient", "testclient")
+
+	w := httptest.NewRecorder()
+	IssueAccessToken(w, req, provider)
+
+	accessToken := types.Token{}
+	err = json.Unmarshal(w.Body.Bytes(), &accessToken)
+	ok(t, err)
+
+	//log.Printf("%s", w.Body.String())
+	equals(t, "bearer", accessToken.Type)
+	equals(t, "600", accessToken.ExpiresIn)
 }
 
 // TestAuthzCodeOwnership tests that the authorization code was issued to the client

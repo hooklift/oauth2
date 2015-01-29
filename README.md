@@ -3,7 +3,7 @@
 Implements an OAuth2 provider in a somewhat strict manner. For instance:
 
 * 3rd party client apps are required to always report the scopes they are trying to gain
-access to when redirecting the resource owner to the authorization form.
+access to when redirecting the resource owner to the web authorization form.
 * Always sends a `Strict-Transport-Security` header by default. You can disable it
 by passing a STS max-age of 0.
 * `X-Frame-Options` header is always sent along the authorization form

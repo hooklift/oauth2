@@ -207,3 +207,7 @@ func (p *Provider) AuthenticateClient(username, password string) (types.Client, 
 func (p *Provider) GrantInfo(client types.Client, code string) (types.GrantCode, error) {
 	return p.GrantCodes[code], nil
 }
+
+func (p *Provider) AuthenticateUser(username, password string) bool {
+	return true
+}

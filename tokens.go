@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/hooklift/oauth2/internal/render"
+	"github.com/hooklift/oauth2/types"
 )
 
 // Handlers is a map to functions where each function handles a particular HTTP
@@ -116,6 +117,51 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, provider Provider)
 
 // Implements http://tools.ietf.org/html/rfc6749#section-4.3
 func resourceOwnerCredentialsGrant(w http.ResponseWriter, req *http.Request, provider Provider) {
+	username, password, ok := req.BasicAuth()
+	cinfo, err := provider.AuthenticateClient(username, password)
+	if !ok || err != nil {
+		render.JSON(w, render.Options{
+			Status: http.StatusBadRequest,
+			Data:   ErrUnauthorizedClient,
+		})
+		return
+	}
+
+	if ok := provider.AuthenticateUser(req.FormValue("username"), req.FormValue("password")); !ok {
+		render.JSON(w, render.Options{
+			Status: http.StatusBadRequest,
+			Data:   ErrUnathorizedUser,
+		})
+		return
+	}
+
+	scope := req.FormValue("scope")
+	var scopes []types.Scope
+	if scope != "" {
+		var err error
+		scopes, err = provider.ScopesInfo(scope)
+		if err != nil {
+			render.JSON(w, render.Options{
+				Status: http.StatusBadRequest,
+				Data:   ErrServerError("", err),
+			})
+			return
+		}
+	}
+
+	token, err := provider.GenToken(scopes, cinfo, true)
+	if err != nil {
+		render.JSON(w, render.Options{
+			Status: http.StatusInternalServerError,
+			Data:   ErrServerError("", err),
+		})
+		return
+	}
+
+	render.JSON(w, render.Options{
+		Status: http.StatusOK,
+		Data:   token,
+	})
 }
 
 // Implements http://tools.ietf.org/html/rfc6749#section-4.4

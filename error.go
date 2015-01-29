@@ -13,8 +13,8 @@ import (
 type AuthzError struct {
 	Code  string `json:"error"`
 	Desc  string `json:"error_description"`
-	URI   string `json:"error_uri"`
-	State string `json:"state"`
+	URI   string `json:"error_uri,omitempty"`
+	State string `json:"state,omitempty"`
 }
 
 func (a *AuthzError) Error() string {
@@ -50,12 +50,17 @@ var (
 
 	ErrUnsupportedGrantType = AuthzError{
 		Code: "unsupported_grant_type",
-		Desc: "grant_type provided is not supported by this authorization server",
+		Desc: "grant_type provided is not supported by this authorization server.",
 	}
 
 	ErrInvalidGrant = AuthzError{
 		Code: "invalid_grant",
 		Desc: "The provided authorization grant (e.g., authorization code, resource owner credentials) or refresh token is invalid, expired, revoked, does not match the redirection URI used in the authorization request, or was issued to another client.",
+	}
+
+	ErrUnathorizedUser = AuthzError{
+		Code: "access_denied",
+		Desc: "Resource owner credentials are invalid.",
 	}
 )
 

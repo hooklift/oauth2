@@ -97,6 +97,9 @@ type Provider interface {
 	// AuthenticateClient authenticates a previously registered client.
 	AuthenticateClient(username, password string) (types.Client, error)
 
+	// AuthenticateUser authenticates resource owner.
+	AuthenticateUser(username, password string) (valid bool)
+
 	// GrantInfo returns information about the authorization grant code.
 	GrantInfo(client types.Client, code string) (types.GrantCode, error)
 }
