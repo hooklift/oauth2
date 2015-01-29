@@ -11,6 +11,8 @@ import (
 	"github.com/hooklift/oauth2/providers/test"
 )
 
+// setupTest creates an instance of our test provider and sets up configuration
+// settings.
 func setupTest(isUserAuthenticated bool) (Provider, *config) {
 	provider := test.NewProvider(isUserAuthenticated)
 	tpl := `
