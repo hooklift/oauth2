@@ -22,57 +22,21 @@ package main
 import (
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/hooklift/oauth2"
+	"github.com/hooklift/oauth2/providers/test"
 )
 
-func main() {
+func ExampleExamples() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/hello", func(w http.ResponseWriter, req *http.Request) {
 		w.Write([]byte("Hellow World!"))
 	})
 
-	authzForm := `
-		<html>
-		<body>
-		{{if .Errors}}
-			<div id="errors">
-				<ul>
-				{{range .Errors}}
-					<li>{{.Code}}: {{.Desc}}</li>
-				{{end}}
-				</ul>
-			</div>
-		{{else}}
-			<form>
-			 <input type="hidden" name="client_id" value="{{.Client.ID}}"/>
-			 <input type="hidden" name="response_type" value="{{.GrantType}}"/>
-			 <input type="hidden" name="redirect_uri" value="{{.Client.RedirectURL}}"/>
-			 <input type="hidden" name="scope" value="{{StringifyScopes .Scopes}}"/>
-			 <input type="hidden" name="state" value="{{.State}}"/>
-			</form>
-		{{end}}
-		</body>
-		</html>
-	`
-
-	reqHandler := oauth2.Handler(
+	reqHandler := Handler(
 		mux,
-		oauth2.SetTokenEndpoint("/oauth2/tokens"),
-		oauth2.SetAuthzEndpoint("/oauth2/authzs"),
-		oauth2.SetRevokeEndpoint("/oauth2/revoke"),
-		// When setting token expiration times, the lower they are the more
-		// frequent your server is going to receive refresh tokens requests.
-		// When the opposite is done, you will be widening the time window for
-		// successful attacks. A reasonable value is 5 or 10 minutes.
-		oauth2.SetTokenExpiration(time.Duration(5)*time.Minute),
-		oauth2.SetAuthzExpiration(time.Duration(1)*time.Minute),
-		// Disables Strict Transport Security for development purposes
-		oauth2.SetSTSMaxAge(0),
-		// Sets authorization HTML form
-		oauth2.SetAuthzForm(authzForm),
-		oauth2.SetProvider(nil),
+		// You must write your own provider by implementing the oauth2.Provider interface.
+		test.NewProvider(true),
 	)
 
 	log.Fatal(http.ListenAndServe(":3000", reqHandler))
