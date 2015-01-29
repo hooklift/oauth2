@@ -1,10 +1,6 @@
-// Package oauth2 implements an OAuth 2.0 authorization server with support
-// for token revokation.
-//
-// For details about the specs implemented please refer to
-// * http://tools.ietf.org/html/rfc6749
-// * http://tools.ietf.org/html/rfc6750
-// * https://tools.ietf.org/html/rfc7009
+// Package oauth2 implements the HTTP dancing in accordance with http://tools.ietf.org/html/rfc6749
+// and leaves the rest of the implementation to its users by requiring them
+// to implement oauth2.Provider interface.
 package oauth2
 
 import (
@@ -23,7 +19,7 @@ type Provider interface {
 	// ClientInfo returns 3rd-party client information
 	ClientInfo(clientID string) (info types.Client, err error)
 
-	// GenAuthzCode issues and stores an authorization grant code, in a persistent storage.
+	// GenGrantCode issues and stores an authorization grant code, in a persistent storage.
 	// The authorization code MUST expire shortly after it is issued to mitigate
 	// the risk of leaks.  A maximum authorization code lifetime of 10 minutes is
 	// RECOMMENDED. If an authorization code is used more than once, the authorization
@@ -31,10 +27,10 @@ type Provider interface {
 	// previously issued based on that authorization code.  The authorization
 	// code is bound to the client identifier and redirection URI.
 	// -- http://tools.ietf.org/html/rfc6749#section-4.1.2
-	GenAuthzCode(client types.Client, scopes []types.Scope) (code types.AuthzCode, err error)
+	GenGrantCode(client types.Client, scopes []types.Scope) (code types.GrantCode, err error)
 
-	// RevokeAuthzCode expires the grant code as well as all access and refresh tokens generated with it.
-	RevokeAuthzCode(code string) error
+	// RevokeGrantCode expires the grant code as well as all access and refresh tokens generated with it.
+	RevokeGrantCode(code string) error
 
 	// ScopesInfo parses the list of scopes requested by the client and
 	// returns its descriptions for the resource owner to fully understand
@@ -44,8 +40,9 @@ type Provider interface {
 	// Unrecognized or non-existent scopes are ignored.
 	ScopesInfo(scopes string) ([]types.Scope, error)
 
-	// GenToken generates and stores token.
-	GenToken(tokenType types.TokenType, scopes []types.Scope, client types.Client) (token types.Token, err error)
+	// GenToken generates and stores access and refresh tokens with the given
+	// client information and authorization scope.
+	GenToken(scopes []types.Scope, client types.Client, refreshToken bool) (token types.Token, err error)
 
 	// RevokeToken expires a specific token.
 	RevokeToken(token string) error
@@ -96,6 +93,12 @@ type Provider interface {
 	// AuthzExpiration returns an expiration value for authorization grant codes.
 	// They should be ideally very low. For instance: 1 minute.
 	AuthzExpiration() time.Duration
+
+	// AuthenticateClient authenticates a previously registered client.
+	AuthenticateClient(username, password string) (types.Client, error)
+
+	// GrantInfo returns information about the authorization grant code.
+	GrantInfo(client types.Client, code string) (types.GrantCode, error)
 }
 
 // Handler handles OAuth2 requests.

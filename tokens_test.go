@@ -3,7 +3,6 @@ package oauth2
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,13 +11,13 @@ import (
 	"github.com/hooklift/oauth2/types"
 )
 
-func AccessTokenRequest(t *testing.T, provider Provider, authzCode string) *http.Request {
+func AccessTokenRequest(t *testing.T, grantType, authzCode string) *http.Request {
 	// http://tools.ietf.org/html/rfc6749#section-4.1.3
 	queryStr := url.Values{
-		"grant_type":   {"authorization_code"},
+		"grant_type":   {grantType},
 		"code":         {authzCode},
-		"redirect_uri": {},
-		"client_id":    {""},
+		"redirect_uri": {"https://example.com/oauth2/callback"},
+		"client_id":    {"test_client_id"},
 	}
 
 	buffer := bytes.NewBufferString(queryStr.Encode())
@@ -34,7 +33,7 @@ func AccessTokenRequest(t *testing.T, provider Provider, authzCode string) *http
 func TestAccessTokenRequest(t *testing.T) {
 	provider, authzCode := getTestAuthzCode(t)
 
-	req := AccessTokenRequest(t, provider, authzCode)
+	req := AccessTokenRequest(t, "authorization_code", authzCode)
 	req.SetBasicAuth("testclient", "testclient")
 
 	w := httptest.NewRecorder()
@@ -43,16 +42,29 @@ func TestAccessTokenRequest(t *testing.T) {
 	// http://tools.ietf.org/html/rfc6749#section-4.1.4
 	accessToken := types.Token{}
 	err := json.Unmarshal(w.Body.Bytes(), &accessToken)
-	ok(t, fmt.Errorf("%s -> %v", req.URL.String(), err))
+	ok(t, err)
 
+	//log.Printf("%s", w.Body.String())
 	equals(t, "bearer", accessToken.Type)
-	equals(t, 600, accessToken.ExpiresIn)
+	equals(t, "600", accessToken.ExpiresIn)
 }
 
 // TestClientAuthRequired tests that client is required to always authenticate in order
 // to request access tokens.
 func TestClientAuthRequired(t *testing.T) {
+	provider, authzCode := getTestAuthzCode(t)
 
+	req := AccessTokenRequest(t, "authorization_code", authzCode)
+
+	w := httptest.NewRecorder()
+	IssueAccessToken(w, req, provider)
+	// Tests for a 400 instead of 401 in accordance to http://tools.ietf.org/html/rfc6749#section-5.1
+	equals(t, http.StatusBadRequest, w.Code)
+
+	appErr := AuthzError{}
+	err := json.Unmarshal(w.Body.Bytes(), &appErr)
+	ok(t, err)
+	equals(t, "unauthorized_client", appErr.Code)
 }
 
 // TestAuthzCodeOwnership tests that the authorization code was issued to the client

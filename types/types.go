@@ -1,3 +1,4 @@
+// Package types defines oauth2 reusable types.
 package types
 
 import (
@@ -10,43 +11,60 @@ import (
 //   * Validate that the provided request_uri parameter matches the one previously
 //     registered for the client.
 type Client struct {
-	ID            string
-	Name          string
-	Desc          string
+	// Client's identifier.
+	ID string
+	// Client's name.
+	Name string
+	// Client's description.
+	Desc string
+	// Profile image URL used when showing authorization form to resource owner
 	ProfileImgURL *url.URL
-	HomepageURL   *url.URL
-	RedirectURL   *url.URL
+	// Client's homepage URL to allow resource owners to verify client's authenticity by themselves.
+	HomepageURL *url.URL
+	// Redirect URL registered for this client.
+	RedirectURL *url.URL
 }
 
 // Scope defines a type for manipulating OAuth2 scopes.
 type Scope struct {
-	ID   string
+	// Scope's identifier. Example: read
+	ID string
+	// Scope's description
 	Desc string
 }
 
-// AuthzCode represents an authorization code
-type AuthzCode struct {
-	Code        string
-	ExpiresIn   time.Duration
-	ClientID    string
+// GrantCode represents an authorization grant code.
+type GrantCode struct {
+	// Authorization code value.
+	Value string
+	// Expiration time for this authorization code.
+	ExpiresIn time.Duration
+	// Client's identifier to which this code was emitted to.
+	ClientID string
+	// Redirect URL associated with the authorization code.
 	RedirectURL *url.URL
-	Scope       []Scope
+	// List of authorization scopes for which this authorization code was generated.
+	Scope []Scope
+	// Whether or not this code was revoked.
+	IsRevoked bool
+	// Whether or not this code was expired.
+	IsExpired bool
+	// Whether or not this code was already used.
+	IsUsed bool
 }
 
 // Token represents an access token.
 type Token struct {
-	ClientID     string        `json:"-"`
-	Value        string        `json:"access_token"`
-	Type         string        `json:"token_type"`
-	ExpiresIn    time.Duration `json:"expires_in"`
-	RefreshToken string        `json:"refresh_token"`
-	Scope        []Scope       `json:"-"`
+	// client associated to this token
+	ClientID string `json:"-"`
+	// The actual token value
+	Value string `json:"access_token"`
+	// Whether it is a bearer, MAC, SAML, etc
+	Type string `json:"token_type"`
+	// Expiration time for this token
+	ExpiresIn string `json:"expires_in"`
+	// Refresh token optionally emitted along with access token
+	RefreshToken string `json:"refresh_token,omitempty"`
+	// Authorization scoped allowed for this token
+	Scope []Scope `json:"-"`
 }
-
-// TokenType defines a type for the two defined token types in OAuth2.
-type TokenType string
-
-const (
-	AccessToken  TokenType = "access"
-	RefreshToken TokenType = "refresh"
-)

@@ -3,7 +3,6 @@ package oauth2
 import (
 	"net/http"
 	"net/url"
-	"strconv"
 
 	"github.com/hooklift/oauth2/internal/render"
 	"github.com/hooklift/oauth2/pkg"
@@ -81,7 +80,7 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, provider Provider) {
 	// redirection URI using the "application/x-www-form-urlencoded" format,
 	// per Appendix B:
 	// http://tools.ietf.org/html/rfc6749#section-4.2.1
-	grantCode, err := provider.GenAuthzCode(authzData.Client, authzData.Scopes)
+	grantCode, err := provider.GenGrantCode(authzData.Client, authzData.Scopes)
 	if err != nil {
 		render.HTML(w, render.Options{
 			Status: http.StatusOK,
@@ -96,7 +95,7 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, provider Provider) {
 
 	u := authzData.Client.RedirectURL
 	query := u.Query()
-	query.Set("code", grantCode.Code)
+	query.Set("code", grantCode.Value)
 	query.Set("state", authzData.State)
 	u.RawQuery = query.Encode()
 
@@ -253,7 +252,7 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, provider Provider,
 func implicitGrant(w http.ResponseWriter, req *http.Request, provider Provider, authzData *AuthzData) {
 	u := authzData.Client.RedirectURL
 
-	token, err := provider.GenToken(types.AccessToken, authzData.Scopes, authzData.Client)
+	token, err := provider.GenToken(authzData.Scopes, authzData.Client, false)
 	if err != nil {
 		EncodeErrInURI(u.Query(), ErrServerError(authzData.State, err))
 		http.Redirect(w, req, u.String(), http.StatusFound)
@@ -263,7 +262,7 @@ func implicitGrant(w http.ResponseWriter, req *http.Request, provider Provider, 
 	query := url.Values{}
 	query.Set("access_token", token.Value)
 	query.Set("token_type", token.Type)
-	query.Set("expires_in", strconv.FormatFloat(token.ExpiresIn.Seconds(), 'f', -1, 64))
+	query.Set("expires_in", token.ExpiresIn)
 	query.Set("scope", pkg.StringifyScopes(token.Scope))
 	query.Set("state", authzData.State)
 

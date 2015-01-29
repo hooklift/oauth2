@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"log"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 
 type Provider struct {
 	Client              types.Client
-	AuthzCodes          map[string]types.AuthzCode
+	GrantCodes          map[string]types.GrantCode
 	AccessTokens        map[string]types.Token
 	RefreshTokens       map[string]types.Token
 	isUserAuthenticated bool
@@ -22,7 +23,7 @@ type Provider struct {
 
 func NewProvider(isUserAuthenticated bool) *Provider {
 	p := &Provider{
-		AuthzCodes:    make(map[string]types.AuthzCode),
+		GrantCodes:    make(map[string]types.GrantCode),
 		AccessTokens:  make(map[string]types.Token),
 		RefreshTokens: make(map[string]types.Token),
 	}
@@ -30,7 +31,7 @@ func NewProvider(isUserAuthenticated bool) *Provider {
 	p.isUserAuthenticated = isUserAuthenticated
 
 	c := types.Client{
-		ID:   uuid.NewV4().String(),
+		ID:   "test_client_id",
 		Name: "Test Client",
 	}
 	c.RedirectURL, _ = url.Parse("https://example.com/oauth2/callback")
@@ -43,21 +44,21 @@ func (p *Provider) ClientInfo(clientID string) (types.Client, error) {
 	return p.Client, nil
 }
 
-func (p *Provider) GenAuthzCode(client types.Client, scopes []types.Scope) (types.AuthzCode, error) {
-	a := types.AuthzCode{
-		Code:        uuid.NewV4().String(),
+func (p *Provider) GenGrantCode(client types.Client, scopes []types.Scope) (types.GrantCode, error) {
+	a := types.GrantCode{
+		Value:       uuid.NewV4().String(),
 		ClientID:    client.ID,
 		RedirectURL: client.RedirectURL,
 		Scope:       scopes,
 	}
 	a.ExpiresIn = p.AuthzExpiration()
 
-	p.AuthzCodes[a.Code] = a
+	p.GrantCodes[a.Value] = a
 	return a, nil
 }
 
-func (p *Provider) RevokeAuthzCode(code string) error {
-	delete(p.AuthzCodes, code)
+func (p *Provider) RevokeGrantCode(code string) error {
+	delete(p.GrantCodes, code)
 	return nil
 }
 
@@ -73,7 +74,7 @@ func (p *Provider) ScopesInfo(scopes string) ([]types.Scope, error) {
 	return scope, nil
 }
 
-func (p *Provider) GenToken(tokenType types.TokenType, scopes []types.Scope, client types.Client) (types.Token, error) {
+func (p *Provider) GenToken(scopes []types.Scope, client types.Client, refreshToken bool) (types.Token, error) {
 	t := types.Token{
 		Value:    uuid.NewV4().String(),
 		Type:     "bearer",
@@ -81,7 +82,12 @@ func (p *Provider) GenToken(tokenType types.TokenType, scopes []types.Scope, cli
 		ClientID: client.ID,
 	}
 
-	t.ExpiresIn = p.TokenExpiration()
+	t.ExpiresIn = strconv.FormatFloat(p.TokenExpiration().Seconds(), 'f', -1, 64)
+	if refreshToken {
+		t.RefreshToken = uuid.NewV4().String()
+		p.RefreshTokens[t.RefreshToken] = t
+	}
+
 	p.AccessTokens[t.Value] = t
 	return t, nil
 }
@@ -192,4 +198,12 @@ func (p *Provider) LoginURL(refererURL string) string {
 
 func (p *Provider) IsUserAuthenticated() bool {
 	return p.isUserAuthenticated
+}
+
+func (p *Provider) AuthenticateClient(username, password string) (types.Client, error) {
+	return p.Client, nil
+}
+
+func (p *Provider) GrantInfo(client types.Client, code string) (types.GrantCode, error) {
+	return p.GrantCodes[code], nil
 }

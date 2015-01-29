@@ -42,6 +42,21 @@ var (
 		Code: "unauthorized_client",
 		Desc: "3rd-party client app requesting access to your resources was not found in our database.",
 	}
+
+	ErrUnauthorizedClient = AuthzError{
+		Code: "unauthorized_client",
+		Desc: "You must provide an authorization header with your client credentials.",
+	}
+
+	ErrUnsupportedGrantType = AuthzError{
+		Code: "unsupported_grant_type",
+		Desc: "grant_type provided is not supported by this authorization server",
+	}
+
+	ErrInvalidGrant = AuthzError{
+		Code: "invalid_grant",
+		Desc: "The provided authorization grant (e.g., authorization code, resource owner credentials) or refresh token is invalid, expired, revoked, does not match the redirection URI used in the authorization request, or was issued to another client.",
+	}
 )
 
 // Encodes errors as query string values in accordance to http://tools.ietf.org/html/rfc6749#section-4.1.2.1
