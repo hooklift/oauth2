@@ -123,6 +123,7 @@ func TestClientCredentialsGrant(t *testing.T) {
 	equals(t, "", accessToken.RefreshToken)
 }
 
+// TestRefreshToken tests happy path for http://tools.ietf.org/html/rfc6749#section-6
 func TestRefreshToken(t *testing.T) {
 	provider := test.NewProvider(true)
 	accessToken, err := provider.GenToken([]types.Scope{
