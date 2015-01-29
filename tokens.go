@@ -166,15 +166,43 @@ func resourceOwnerCredentialsGrant(w http.ResponseWriter, req *http.Request, pro
 
 // Implements http://tools.ietf.org/html/rfc6749#section-4.4
 func clientCredentialsGrant(w http.ResponseWriter, req *http.Request, provider Provider) {
-	username, password, _ := req.BasicAuth()
-	_, err := provider.AuthenticateClient(username, password)
-	if err != nil {
+	username, password, ok := req.BasicAuth()
+	cinfo, err := provider.AuthenticateClient(username, password)
+	if !ok || err != nil {
 		render.JSON(w, render.Options{
 			Status: http.StatusBadRequest,
 			Data:   ErrUnauthorizedClient,
 		})
 		return
 	}
+
+	scope := req.FormValue("scope")
+	var scopes []types.Scope
+	if scope != "" {
+		var err error
+		scopes, err = provider.ScopesInfo(scope)
+		if err != nil {
+			render.JSON(w, render.Options{
+				Status: http.StatusBadRequest,
+				Data:   ErrServerError("", err),
+			})
+			return
+		}
+	}
+
+	token, err := provider.GenToken(scopes, cinfo, false)
+	if err != nil {
+		render.JSON(w, render.Options{
+			Status: http.StatusInternalServerError,
+			Data:   ErrServerError("", err),
+		})
+		return
+	}
+
+	render.JSON(w, render.Options{
+		Status: http.StatusOK,
+		Data:   token,
+	})
 }
 
 // Implements http://tools.ietf.org/html/rfc6749#section-5

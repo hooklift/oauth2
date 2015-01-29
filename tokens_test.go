@@ -68,8 +68,8 @@ func TestAuthzGrantClientAuthRequired(t *testing.T) {
 	equals(t, "unauthorized_client", appErr.Code)
 }
 
-// TestPasswordGrantTokenRequest tests happy path for http://tools.ietf.org/html/rfc6749#section-4.3
-func TestResourceOwnerCredentialsTokenRequest(t *testing.T) {
+// TestResourceOwnerCredentialsGrant tests happy path for http://tools.ietf.org/html/rfc6749#section-4.3
+func TestResourceOwnerCredentialsGrant(t *testing.T) {
 	provider := test.NewProvider(true)
 	queryStr := url.Values{
 		"grant_type": {"password"},
@@ -93,6 +93,34 @@ func TestResourceOwnerCredentialsTokenRequest(t *testing.T) {
 	//log.Printf("%s", w.Body.String())
 	equals(t, "bearer", accessToken.Type)
 	equals(t, "600", accessToken.ExpiresIn)
+}
+
+// TestClientCredentialsGrant tests happy path for http://tools.ietf.org/html/rfc6749#section-4.4
+func TestClientCredentialsGrant(t *testing.T) {
+	provider := test.NewProvider(true)
+	queryStr := url.Values{
+		"grant_type": {"client_credentials"},
+	}
+
+	buffer := bytes.NewBufferString(queryStr.Encode())
+	req, err := http.NewRequest("POST", "https://example.com/oauth2/tokens", buffer)
+	ok(t, err)
+	req.Header.Set("Content-type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth("testclient", "testclient")
+
+	w := httptest.NewRecorder()
+	IssueAccessToken(w, req, provider)
+
+	accessToken := types.Token{}
+	err = json.Unmarshal(w.Body.Bytes(), &accessToken)
+	ok(t, err)
+
+	//log.Printf("%s", w.Body.String())
+	equals(t, "bearer", accessToken.Type)
+	equals(t, "600", accessToken.ExpiresIn)
+
+	// A refresh token SHOULD NOT be included.
+	equals(t, "", accessToken.RefreshToken)
 }
 
 // TestAuthzCodeOwnership tests that the authorization code was issued to the client
