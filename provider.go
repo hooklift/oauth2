@@ -54,7 +54,7 @@ type Provider interface {
 	RefreshToken(refreshToken, scopes []types.Scope) (accessToken types.Token, err error)
 
 	// AuthzForm returns the HTML authorization form.
-	AuthzForm() string
+	AuthzForm() *template.Template
 
 	// LoginURL returns the login URL for the resource owner to authenticate if there is
 	// not a valid session. The authentication system should send back the user
@@ -64,152 +64,50 @@ type Provider interface {
 	// IsUserAuthenticated checks whether or not the resource owner has a valid session
 	// with the system. If not, it redirects the user to the login URL.
 	IsUserAuthenticated() bool
-}
 
-// http://commandcenter.blogspot.com/2014/01/self-referential-functions-and-design.html
-type option func(*config)
+	// TokenEndpoint is used by the client to obtain an access token by
+	// presenting its authorization grant or refresh token.  The token
+	// endpoint is used with every authorization grant except for the
+	// implicit grant type (since an access token is issued directly).
+	//
+	// -- http://tools.ietf.org/html/rfc6749#section-3.2
+	TokenEndpoint() string
 
-type config struct {
-	authzEndpoint   string
-	tokenEndpoint   string
-	revokeEndpoint  string
-	stsMaxAge       time.Duration
-	authzForm       *template.Template
-	provider        Provider
-	authzExpiration time.Duration
-	tokenExpiration time.Duration
-}
+	// AuthzEndpoint the authorization endpoint is used to interact with the
+	// resource owner and obtain an authorization grant.
+	//
+	// -- http://tools.ietf.org/html/rfc6749#section-3.1.1
+	AuthzEndpoint() string
 
-// TokenEndpoint allows setting token endpoint. Defaults to "/oauth2/tokens".
-//
-// The token endpoint is used by the client to obtain an access token by
-// presenting its authorization grant or refresh token.  The token
-// endpoint is used with every authorization grant except for the
-// implicit grant type (since an access token is issued directly).
-//
-// Since requests to the token endpoint result in the transmission of
-// clear-text credentials (in the HTTP request and response), the
-// authorization server MUST require the use of TLS as described in
-// Section 1.6 when sending requests to the token endpoint.
-//
-// -- http://tools.ietf.org/html/rfc6749#section-3.2
-func SetTokenEndpoint(endpoint string) option {
-	return func(c *config) {
-		c.tokenEndpoint = endpoint
-	}
-}
+	// RevokeEndpoint installs a request handler for the returned endpoint to
+	// process token revokation requests.
+	RevokeEndpoint() string
 
-// AuthzEndpoint allows setting authorization endpoint. Defaults to "/oauth2/authzs"
-//
-// The authorization endpoint is used to interact with the resource owner and
-// obtain an authorization grant.
-//
-// Since requests to the authorization endpoint result in user authentication
-// and the transmission of clear-text credentials (in the HTTP response), the
-// authorization server MUST require the use of TLS as described in Section 1.6
-// when sending requests to the authorization endpoint.
-//
-// -- http://tools.ietf.org/html/rfc6749#section-3.1.1
-func SetAuthzEndpoint(endpoint string) option {
-	return func(c *config) {
-		c.authzEndpoint = endpoint
-	}
-}
+	// STSMaxAge returns a maximum age value for Strict Transport Security header
+	STSMaxAge() time.Duration
 
-// SetRevokeEndpoint allows setting a custom token revoke URI. Defaults to "/oauth2/revoke".
-func SetRevokeEndpoint(endpoint string) option {
-	return func(c *config) {
-		c.revokeEndpoint = endpoint
-	}
-}
+	// TokenExpiration returns an expiration value for access tokens.
+	// When setting token expiration times, the lower they are the more
+	// frequent your server is going to receive refresh tokens requests.
+	// When the opposite is done, you will be widening the time window for
+	// successful attacks. A reasonable value is 5 or 10 minutes.
+	TokenExpiration() time.Duration
 
-// SetSTSMaxAge sets Strict Transport Security maximum age. Defaults to 1yr.
-func SetSTSMaxAge(maxAge time.Duration) option {
-	return func(c *config) {
-		c.stsMaxAge = maxAge
-	}
-}
-
-// StringifyScopes is a helper function to stringify scope structs
-func StringifyScopes(scopes []types.Scope) string {
-	if len(scopes) <= 0 {
-		return ""
-	}
-
-	var scope string
-	for _, v := range scopes {
-		scope += v.ID + " "
-	}
-	return scope[:len(scope)-1] // removes last space
-}
-
-// SetAuthzForm sets authorization form to show to the resource owner.
-func SetAuthzForm(form string) option {
-	var funcMap template.FuncMap = template.FuncMap{
-		"StringifyScopes": StringifyScopes,
-	}
-	return func(c *config) {
-		t := template.New("authzform")
-		t.Funcs(funcMap)
-
-		tpl, err := t.Parse(form)
-		if err != nil {
-			log.Fatalf("Error parsing authorization form: %v", err)
-		}
-
-		c.authzForm = tpl
-	}
-}
-
-// SetTokenExpiration allows setting expiration time for access tokens.
-func SetTokenExpiration(e time.Duration) option {
-	return func(c *config) {
-		c.tokenExpiration = e
-	}
-}
-
-// SetAuthzExpiration allows setting expiration time for authorization grant codes.
-func SetAuthzExpiration(e time.Duration) option {
-	return func(c *config) {
-		c.authzExpiration = e
-	}
-}
-
-// SetProvider sets backend provider
-func SetProvider(p Provider) option {
-	return func(c *config) {
-		c.provider = p
-	}
+	// AuthzExpiration returns an expiration value for authorization grant codes.
+	// They should be ideally very low. For instance: 1 minute.
+	AuthzExpiration() time.Duration
 }
 
 // Handler handles OAuth2 requests.
-func Handler(next http.Handler, opts ...option) http.Handler {
-	// Default configuration options.
-	cfg := &config{
-		tokenEndpoint:  "/oauth2/tokens",
-		authzEndpoint:  "/oauth2/authzs",
-		revokeEndpoint: "/oauth2/revoke",
-	}
-
-	cfg.stsMaxAge = time.Duration(31536000) * time.Second // 1yr
-
-	// Applies user's configuration.
-	for _, opt := range opts {
-		opt(cfg)
-	}
-
-	if cfg.authzForm == nil {
-		log.Fatalln("Authorization form is required")
-	}
-
-	if cfg.provider == nil {
+func Handler(next http.Handler, provider Provider) http.Handler {
+	if provider == nil {
 		log.Fatalln("An implementation of the oauth2.Provider interface is expected")
 	}
 
 	// Keeps a registry of path function handlers for OAuth2 requests.
-	registry := map[string]map[string]func(http.ResponseWriter, *http.Request, *config, http.Handler){
-		cfg.authzEndpoint: AuthzHandlers,
-		cfg.tokenEndpoint: TokenHandlers,
+	registry := map[string]map[string]func(http.ResponseWriter, *http.Request, Provider){
+		provider.AuthzEndpoint(): AuthzHandlers,
+		provider.TokenEndpoint(): TokenHandlers,
 		// TODO(c4milo): URL handlers for revoking tokens and grants
 	}
 
@@ -218,7 +116,7 @@ func Handler(next http.Handler, opts ...option) http.Handler {
 		for p, handlers := range registry {
 			if strings.HasPrefix(req.URL.Path, p) {
 				if handlerFn, ok := handlers[req.Method]; ok {
-					handlerFn(w, req, cfg, next)
+					handlerFn(w, req, provider)
 					return
 				}
 				w.WriteHeader(http.StatusMethodNotAllowed)

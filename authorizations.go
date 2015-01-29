@@ -6,12 +6,13 @@ import (
 	"strconv"
 
 	"github.com/hooklift/oauth2/internal/render"
+	"github.com/hooklift/oauth2/pkg"
 	"github.com/hooklift/oauth2/types"
 )
 
 // Handlers is a map to functions where each function handles a particular HTTP
 // verb or method.
-var AuthzHandlers map[string]func(http.ResponseWriter, *http.Request, *config, http.Handler) = map[string]func(http.ResponseWriter, *http.Request, *config, http.Handler){
+var AuthzHandlers map[string]func(http.ResponseWriter, *http.Request, Provider) = map[string]func(http.ResponseWriter, *http.Request, Provider){
 	"GET":    CreateGrant,
 	"POST":   CreateGrant,
 	"DELETE": RevokeGrant,
@@ -34,9 +35,9 @@ type AuthzData struct {
 
 // CreateGrant generates the authorization code for 3rd-party clients to use
 // in order to get access and refresh tokens, asking the resource owner for authorization.
-func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.Handler) {
-	if yes := cfg.provider.IsUserAuthenticated(); !yes {
-		loginURL := cfg.provider.LoginURL(req.URL.String())
+func CreateGrant(w http.ResponseWriter, req *http.Request, provider Provider) {
+	if yes := provider.IsUserAuthenticated(); !yes {
+		loginURL := provider.LoginURL(req.URL.String())
 		http.Redirect(w, req, loginURL, http.StatusFound)
 		return
 	}
@@ -48,7 +49,7 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.H
 		params[v] = req.FormValue(v)
 	}
 
-	authzData := authCodeGrant1(w, req, cfg, params)
+	authzData := authCodeGrant1(w, req, provider, params)
 	if authzData == nil {
 		// A response with an error was already sent back
 		return
@@ -61,15 +62,15 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.H
 		render.HTML(w, render.Options{
 			Status:    http.StatusOK,
 			Data:      authzData,
-			Template:  cfg.authzForm,
-			STSMaxAge: cfg.stsMaxAge,
+			Template:  provider.AuthzForm(),
+			STSMaxAge: provider.STSMaxAge(),
 		})
 		return
 	}
 
 	if params["response_type"] == "token" {
 		// Continue with implicit grant flow
-		implicitGrant(w, req, cfg, authzData)
+		implicitGrant(w, req, provider, authzData)
 		return
 	}
 
@@ -80,7 +81,7 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.H
 	// redirection URI using the "application/x-www-form-urlencoded" format,
 	// per Appendix B:
 	// http://tools.ietf.org/html/rfc6749#section-4.2.1
-	grantCode, err := cfg.provider.GenAuthzCode(authzData.Client, authzData.Scopes)
+	grantCode, err := provider.GenAuthzCode(authzData.Client, authzData.Scopes)
 	if err != nil {
 		render.HTML(w, render.Options{
 			Status: http.StatusOK,
@@ -88,7 +89,7 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.H
 				Errors: []AuthzError{
 					ErrServerError("", err),
 				}},
-			Template: cfg.authzForm,
+			Template: provider.AuthzForm(),
 		})
 		return
 	}
@@ -105,7 +106,7 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.H
 
 // AuthCodeGrant1 implements http://tools.ietf.org/html/rfc6749#section-4.1.1 and
 // http://tools.ietf.org/html/rfc6749#section-4.2.1
-func authCodeGrant1(w http.ResponseWriter, req *http.Request, cfg *config, params map[string]string) *AuthzData {
+func authCodeGrant1(w http.ResponseWriter, req *http.Request, provider Provider, params map[string]string) *AuthzData {
 	// If the client identifier is missing or invalid, the authorization server
 	// SHOULD inform the resource owner of the error and MUST NOT automatically
 	// redirect the user-agent to the invalid redirection URI.
@@ -118,12 +119,12 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, cfg *config, param
 					ErrClientIDMissing,
 				},
 			},
-			Template: cfg.authzForm,
+			Template: provider.AuthzForm(),
 		})
 		return nil
 	}
 
-	cinfo, err := cfg.provider.ClientInfo(clientID)
+	cinfo, err := provider.ClientInfo(clientID)
 	if err != nil {
 		render.HTML(w, render.Options{
 			Status: http.StatusOK,
@@ -132,7 +133,7 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, cfg *config, param
 					ErrServerError("", err),
 				},
 			},
-			Template: cfg.authzForm,
+			Template: provider.AuthzForm(),
 		})
 		return nil
 	}
@@ -145,7 +146,7 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, cfg *config, param
 					ErrClientIDNotFound,
 				},
 			},
-			Template: cfg.authzForm,
+			Template: provider.AuthzForm(),
 		})
 		return nil
 	}
@@ -168,7 +169,7 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, cfg *config, param
 						ErrRedirectURLInvalid,
 					},
 				},
-				Template: cfg.authzForm,
+				Template: provider.AuthzForm(),
 			})
 			return nil
 		}
@@ -184,7 +185,7 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, cfg *config, param
 					ErrRedirectURLInvalid,
 				},
 			},
-			Template: cfg.authzForm,
+			Template: provider.AuthzForm(),
 		})
 		return nil
 	}
@@ -200,7 +201,7 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, cfg *config, param
 					ErrRedirectURLMismatch,
 				},
 			},
-			Template: cfg.authzForm,
+			Template: provider.AuthzForm(),
 		})
 		return nil
 	}
@@ -233,7 +234,7 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, cfg *config, param
 		return nil
 	}
 
-	scopes, err := cfg.provider.ScopesInfo(scope)
+	scopes, err := provider.ScopesInfo(scope)
 	if err != nil {
 		EncodeErrInURI(redirectURL.Query(), ErrServerError(state, err))
 		http.Redirect(w, req, redirectURL.String(), http.StatusFound)
@@ -249,10 +250,10 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, cfg *config, param
 }
 
 // ImplicitGrant implements http://tools.ietf.org/html/rfc6749#section-4.2
-func implicitGrant(w http.ResponseWriter, req *http.Request, cfg *config, authzData *AuthzData) {
+func implicitGrant(w http.ResponseWriter, req *http.Request, provider Provider, authzData *AuthzData) {
 	u := authzData.Client.RedirectURL
 
-	token, err := cfg.provider.GenToken(types.AccessToken, authzData.Scopes, authzData.Client)
+	token, err := provider.GenToken(types.AccessToken, authzData.Scopes, authzData.Client)
 	if err != nil {
 		EncodeErrInURI(u.Query(), ErrServerError(authzData.State, err))
 		http.Redirect(w, req, u.String(), http.StatusFound)
@@ -263,7 +264,7 @@ func implicitGrant(w http.ResponseWriter, req *http.Request, cfg *config, authzD
 	query.Set("access_token", token.Value)
 	query.Set("token_type", token.Type)
 	query.Set("expires_in", strconv.FormatFloat(token.ExpiresIn.Seconds(), 'f', -1, 64))
-	query.Set("scope", StringifyScopes(token.Scope))
+	query.Set("scope", pkg.StringifyScopes(token.Scope))
 	query.Set("state", authzData.State)
 
 	u.Fragment = "#" + query.Encode()
@@ -271,6 +272,6 @@ func implicitGrant(w http.ResponseWriter, req *http.Request, cfg *config, authzD
 }
 
 // RevokeGrant invalidates all tokens issued with the given grant authorization code.
-func RevokeGrant(w http.ResponseWriter, req *http.Request, cfg *config, _ http.Handler) {
+func RevokeGrant(w http.ResponseWriter, req *http.Request, provider Provider) {
 	//TODO(c4milo)
 }

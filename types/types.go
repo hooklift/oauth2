@@ -35,11 +35,12 @@ type AuthzCode struct {
 
 // Token represents an access token.
 type Token struct {
-	ClientID  string
-	Value     string
-	Type      string // bearer only for now.
-	ExpiresIn time.Duration
-	Scope     []Scope
+	ClientID     string        `json:"-"`
+	Value        string        `json:"access_token"`
+	Type         string        `json:"token_type"`
+	ExpiresIn    time.Duration `json:"expires_in"`
+	RefreshToken string        `json:"refresh_token"`
+	Scope        []Scope       `json:"-"`
 }
 
 // TokenType defines a type for the two defined token types in OAuth2.

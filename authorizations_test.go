@@ -11,60 +11,19 @@ import (
 	"github.com/hooklift/oauth2/providers/test"
 )
 
-// setupTest creates an instance of our test provider and sets up configuration
-// settings.
-func setupTest(isUserAuthenticated bool) (Provider, *config) {
-	provider := test.NewProvider(isUserAuthenticated)
-	tpl := `
-		<html>
-		<body>
-		{{if .Errors}}
-			<div id="errors">
-				<ul>
-				{{range .Errors}}
-					<li>{{.Code}}: {{.Desc}}</li>
-				{{end}}
-				</ul>
-			</div>
-		{{else}}
-			<form>
-			 <input type="hidden" name="client_id" value="{{.Client.ID}}"/>
-			 <input type="hidden" name="response_type" value="{{.GrantType}}"/>
-			 <input type="hidden" name="redirect_uri" value="{{.Client.RedirectURL}}"/>
-			 <input type="hidden" name="scope" value="{{StringifyScopes .Scopes}}"/>
-			 <input type="hidden" name="state" value="{{.State}}"/>
-			</form>
-		{{end}}
-		</body>
-		</html>
-	`
-
-	cfg := &config{
-		tokenEndpoint:  "/oauth2/tokens",
-		authzEndpoint:  "/oauth2/authzs",
-		revokeEndpoint: "/oauth2/revoke",
-	}
-
-	SetProvider(provider)(cfg)
-	SetAuthzForm(tpl)(cfg)
-
-	return provider, cfg
-}
-
-// TestAuthorizationGrant tests a happy web authorization flow in accordance with
-// http://tools.ietf.org/html/rfc6749#section-4.1
-func TestAuthorizationGrant(t *testing.T) {
-	provider, cfg := setupTest(true)
+// getTestAuthzCode returns authorization tokens for access tokens issuing tests
+func getTestAuthzCode(t *testing.T) (Provider, string) {
+	provider := test.NewProvider(true)
 
 	state := "state-test"
 	scopes := "read write identity"
 	grantType := "code"
 
 	values := url.Values{
-		"client_id":     {provider.(*test.Provider).Client.ID},
+		"client_id":     {provider.Client.ID},
 		"response_type": {grantType},
 		"state":         {state},
-		"redirect_uri":  {provider.(*test.Provider).Client.RedirectURL.String()},
+		"redirect_uri":  {provider.Client.RedirectURL.String()},
 		"scope":         {scopes},
 	}
 
@@ -75,7 +34,7 @@ func TestAuthorizationGrant(t *testing.T) {
 	ok(t, err)
 
 	w := httptest.NewRecorder()
-	CreateGrant(w, req, cfg, nil)
+	CreateGrant(w, req, provider)
 	equals(t, http.StatusOK, w.Code)
 
 	body := w.Body.String()
@@ -102,7 +61,7 @@ func TestAuthorizationGrant(t *testing.T) {
 	req.Header.Set("Content-type", "application/x-www-form-urlencoded")
 
 	w = httptest.NewRecorder()
-	CreateGrant(w, req, cfg, nil)
+	CreateGrant(w, req, provider)
 
 	// Tests http://tools.ietf.org/html/rfc6749#section-4.1.2
 	equals(t, http.StatusFound, w.Code)
@@ -114,18 +73,26 @@ func TestAuthorizationGrant(t *testing.T) {
 	authzCode := url.Query().Get("code")
 	assert(t, authzCode != "", "It looks like the authorization code came back empty: %s", authzCode)
 	equals(t, state, url.Query().Get("state"))
+
+	return provider, authzCode
+}
+
+// TestAuthorizationGrant tests a happy web authorization flow in accordance with
+// http://tools.ietf.org/html/rfc6749#section-4.1
+func TestAuthorizationGrant(t *testing.T) {
+	getTestAuthzCode(t)
 }
 
 // TestLoginRedirect tests that logging in is required for a resource owner to
 // grant any authorization codes to clients.
 func TestLoginRedirect(t *testing.T) {
-	provider, cfg := setupTest(false)
+	provider := test.NewProvider(false)
 
 	state := "state-test"
 	scopes := "read write identity"
 	grantType := "code"
-	clientID := provider.(*test.Provider).Client.ID
-	redirectURL := provider.(*test.Provider).Client.RedirectURL.String()
+	clientID := provider.Client.ID
+	redirectURL := provider.Client.RedirectURL.String()
 
 	values := url.Values{
 		"client_id":     {clientID},
@@ -142,20 +109,20 @@ func TestLoginRedirect(t *testing.T) {
 	ok(t, err)
 
 	w := httptest.NewRecorder()
-	CreateGrant(w, req, cfg, nil)
+	CreateGrant(w, req, provider)
 	equals(t, http.StatusFound, w.Code)
 	equals(t, provider.LoginURL(authzURL), w.Header().Get("Location"))
 }
 
 // TestImplicitGrant tests a happy implicit flow
 func TestImplicitGrant(t *testing.T) {
-	provider, cfg := setupTest(true)
+	provider := test.NewProvider(true)
 
 	state := "state-test"
 	scopes := "read write identity"
 	grantType := "token"
-	clientID := provider.(*test.Provider).Client.ID
-	redirectURL := provider.(*test.Provider).Client.RedirectURL.String()
+	clientID := provider.Client.ID
+	redirectURL := provider.Client.RedirectURL.String()
 
 	values := url.Values{
 		"client_id":     {clientID},
@@ -172,7 +139,7 @@ func TestImplicitGrant(t *testing.T) {
 	ok(t, err)
 
 	w := httptest.NewRecorder()
-	CreateGrant(w, req, cfg, nil)
+	CreateGrant(w, req, provider)
 	body := w.Body.String()
 	stringz := []string{
 		"client_id",
@@ -197,7 +164,7 @@ func TestImplicitGrant(t *testing.T) {
 	req.Header.Set("Content-type", "application/x-www-form-urlencoded")
 
 	w = httptest.NewRecorder()
-	CreateGrant(w, req, cfg, nil)
+	CreateGrant(w, req, provider)
 
 	// Tests http://tools.ietf.org/html/rfc6749#section-4.2.2
 	equals(t, http.StatusFound, w.Code)
@@ -251,12 +218,14 @@ func TestAccessTokenExpiration(t *testing.T) {
 
 }
 
-// TestScopeIsRequired makes sure it requires clients to provide access scopes.
+// TestScopeIsRequired makes sure it requires clients to provide access scopes when
+// getting authorization codes.
 func TestScopeIsRequired(t *testing.T) {
 
 }
 
-// TestStateIsRequired makes sure it requires clients to provide a state.
+// TestStateIsRequired makes sure it requires clients to provide a state when
+// getting authorization codes.
 func TestStateIsRequired(t *testing.T) {
 
 }
@@ -271,7 +240,8 @@ func TestRedirectURIScheme(t *testing.T) {
 
 }
 
-// TestRedirectURIUniqueness makes sure there is only one redirect URL registered across the system.
+// TestRedirectURIUniqueness makes sure there redirect URL is unique across the
+// entire system.
 func TestRedirectURIUniqueness(t *testing.T) {
 
 }
