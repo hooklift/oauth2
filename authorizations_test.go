@@ -226,10 +226,47 @@ func TestReplayAttackProtection(t *testing.T) {
 // This is intended to mitigate the risk of account hijacking by leaking
 // authorization codes.
 func TestRedirectURLMatch(t *testing.T) {
+	provider := test.NewProvider(true)
 
+	state := "state-test"
+	scopes := "read write identity"
+	grantType := "code"
+
+	values := url.Values{
+		"client_id":     {provider.Client.ID},
+		"response_type": {grantType},
+		"state":         {state},
+		"redirect_uri":  {provider.Client.RedirectURL.String()},
+		"scope":         {scopes},
+	}
+
+	// http://tools.ietf.org/html/rfc6749#section-4.1.1
+	queryStr := values.Encode()
+	req, err := http.NewRequest("GET",
+		"https://example.com/oauth2/authzs?"+queryStr, nil)
+	ok(t, err)
+
+	w := httptest.NewRecorder()
+	CreateGrant(w, req, provider)
+	equals(t, http.StatusOK, w.Code)
+
+	// Sending post to acquire authorization token
+	values.Set("redirect_uri", "https://attacker.com/callback")
+	queryStr2 := values.Encode()
+	buffer := bytes.NewBufferString(queryStr2)
+	req, err = http.NewRequest("POST", "https://example.com/oauth2/authzs", buffer)
+	ok(t, err)
+
+	req.Header.Set("Content-type", "application/x-www-form-urlencoded")
+
+	w2 := httptest.NewRecorder()
+	CreateGrant(w2, req, provider)
+	body := w2.Body.String()
+	assert(t, strings.Contains(body, "access_denied"), "access_denied was expected as response")
+	assert(t, strings.Contains(body, "3rd-party client app provided a redirect_uri that does not match the URI registered for this client in our database."), "unexpected error description.")
 }
 
-// TestAccessTokenIssuer makes sure a token belongs to the client_id making
+// TestAccessTokenOwnership makes sure a token belongs to the client_id making
 // the request with it. This mitigates account hijacking as well.
 func TestAccessTokenOwnership(t *testing.T) {
 
