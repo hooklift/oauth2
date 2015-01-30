@@ -77,20 +77,9 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, provider Provider,
 		return
 	}
 
-	if grantCode.IsRevoked {
+	if grantCode.IsRevoked || grantCode.IsExpired || grantCode.IsUsed {
 		e := ErrInvalidGrant
-		e.Desc = "Grant code was revoked"
-
-		render.JSON(w, render.Options{
-			Status: http.StatusBadRequest,
-			Data:   e,
-		})
-		return
-	}
-
-	if grantCode.IsExpired {
-		e := ErrInvalidGrant
-		e.Desc = "Grant code expired"
+		e.Desc = "Grant code was revoked, expired or already used."
 
 		render.JSON(w, render.Options{
 			Status: http.StatusBadRequest,
@@ -110,7 +99,7 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, provider Provider,
 		return
 	}
 
-	// This should not happen if the provider is doing its work but we are
+	// This should not happen if the provider is doing its work properly but we are
 	// checking anyways.
 	if grantCode.ClientID != cinfo.ID {
 		e := ErrInvalidGrant
@@ -123,7 +112,7 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, provider Provider,
 		return
 	}
 
-	token, err := provider.GenToken(grantCode.Scope, cinfo, true)
+	token, err := provider.GenToken(grantCode, cinfo, true)
 	if err != nil {
 		render.JSON(w, render.Options{
 			Status: http.StatusInternalServerError,
@@ -162,7 +151,10 @@ func resourceOwnerCredentialsGrant(w http.ResponseWriter, req *http.Request, pro
 		}
 	}
 
-	token, err := provider.GenToken(scopes, cinfo, true)
+	noAuthzGrant := types.GrantCode{
+		Scope: scopes,
+	}
+	token, err := provider.GenToken(noAuthzGrant, cinfo, true)
 	if err != nil {
 		render.JSON(w, render.Options{
 			Status: http.StatusInternalServerError,
@@ -193,7 +185,10 @@ func clientCredentialsGrant(w http.ResponseWriter, req *http.Request, provider P
 		}
 	}
 
-	token, err := provider.GenToken(scopes, cinfo, false)
+	noAuthzGrant := types.GrantCode{
+		Scope: scopes,
+	}
+	token, err := provider.GenToken(noAuthzGrant, cinfo, false)
 	if err != nil {
 		render.JSON(w, render.Options{
 			Status: http.StatusInternalServerError,

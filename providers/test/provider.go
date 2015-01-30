@@ -74,11 +74,11 @@ func (p *Provider) ScopesInfo(scopes string) ([]types.Scope, error) {
 	return scope, nil
 }
 
-func (p *Provider) GenToken(scopes []types.Scope, client types.Client, refreshToken bool) (types.Token, error) {
+func (p *Provider) GenToken(grantCode types.GrantCode, client types.Client, refreshToken bool) (types.Token, error) {
 	t := types.Token{
 		Value:    uuid.NewV4().String(),
 		Type:     "bearer",
-		Scope:    scopes,
+		Scope:    grantCode.Scope,
 		ClientID: client.ID,
 	}
 
@@ -86,6 +86,11 @@ func (p *Provider) GenToken(scopes []types.Scope, client types.Client, refreshTo
 	if refreshToken {
 		t.RefreshToken = uuid.NewV4().String()
 		p.RefreshTokens[t.RefreshToken] = t
+	}
+
+	if v, ok := p.GrantCodes[grantCode.Value]; ok {
+		v.IsUsed = true
+		p.GrantCodes[grantCode.Value] = v
 	}
 
 	p.AccessTokens[t.Value] = t
@@ -101,7 +106,11 @@ func (p *Provider) RefreshToken(refreshToken types.Token, scopes []types.Scope) 
 	// Revokes existing refresh token
 	delete(p.RefreshTokens, refreshToken.Value)
 
-	return p.GenToken(scopes, types.Client{
+	grantCode := types.GrantCode{
+		Scope: scopes,
+	}
+
+	return p.GenToken(grantCode, types.Client{
 		ID: refreshToken.ClientID,
 	}, true)
 }
@@ -206,6 +215,14 @@ func (p *Provider) IsUserAuthenticated() bool {
 }
 
 func (p *Provider) AuthenticateClient(username, password string) (types.Client, error) {
+	if username == "boo" {
+		c := types.Client{
+			ID:   "boo",
+			Name: "Boo",
+		}
+		c.RedirectURL, _ = url.Parse("https://example.com/oauth2/callback")
+		return c, nil
+	}
 	return p.Client, nil
 }
 

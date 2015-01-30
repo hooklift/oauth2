@@ -42,7 +42,7 @@ type Provider interface {
 
 	// GenToken generates and stores access and refresh tokens with the given
 	// client information and authorization scope.
-	GenToken(scopes []types.Scope, client types.Client, refreshToken bool) (token types.Token, err error)
+	GenToken(grantCode types.GrantCode, client types.Client, refreshToken bool) (token types.Token, err error)
 
 	// RevokeToken expires a specific token.
 	RevokeToken(token string) error

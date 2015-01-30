@@ -126,10 +126,12 @@ func TestClientCredentialsGrant(t *testing.T) {
 // TestRefreshToken tests happy path for http://tools.ietf.org/html/rfc6749#section-6
 func TestRefreshToken(t *testing.T) {
 	provider := test.NewProvider(true)
-	accessToken, err := provider.GenToken([]types.Scope{
-		types.Scope{
+	noAuthzGrant := types.GrantCode{
+		Scope: []types.Scope{types.Scope{
 			ID: "identity",
-		}}, types.Client{
+		}},
+	}
+	accessToken, err := provider.GenToken(noAuthzGrant, types.Client{
 		ID: "test_client_id",
 	}, true)
 	ok(t, err)
@@ -164,5 +166,48 @@ func TestRefreshToken(t *testing.T) {
 // TestAuthzCodeOwnership tests that the authorization code was issued to the client
 // requesting the access token.
 func TestAuthzCodeOwnership(t *testing.T) {
+	provider, authzCode := getTestAuthzCode(t)
+
+	req := AuthzGrantTokenRequestTest(t, "authorization_code", authzCode)
+	req.SetBasicAuth("boo", "boo")
+
+	w := httptest.NewRecorder()
+	IssueAccessToken(w, req, provider)
+
+	// http://tools.ietf.org/html/rfc6749#section-4.1.4
+	authzErr := AuthzError{}
+	//log.Printf("%s", w.Body.String())
+	err := json.Unmarshal(w.Body.Bytes(), &authzErr)
+	ok(t, err)
+	equals(t, "invalid_grant", authzErr.Code)
+	equals(t, "Grant code was generated for a different redirect URI.", authzErr.Desc)
+}
+
+// TestAuthzGrantExpiration makes sure that authorization codes are actually expired after used.
+// This will protect against replay attacks on the authorization grant code.
+func TestAuthzGrantExpiration(t *testing.T) {
+	provider, authzCode := getTestAuthzCode(t)
+
+	req := AuthzGrantTokenRequestTest(t, "authorization_code", authzCode)
+	req.SetBasicAuth("test_client_id", "test_client_id")
+
+	w := httptest.NewRecorder()
+	IssueAccessToken(w, req, provider)
+	token := types.Token{}
+	err := json.Unmarshal(w.Body.Bytes(), &token)
+	ok(t, err)
+	equals(t, "bearer", token.Type)
+	equals(t, "600", token.ExpiresIn)
+
+	w2 := httptest.NewRecorder()
+	IssueAccessToken(w2, req, provider)
+
+	// http://tools.ietf.org/html/rfc6749#section-4.1.4
+	authzErr := AuthzError{}
+	//log.Printf("%s", w2.Body.String())
+	err = json.Unmarshal(w2.Body.Bytes(), &authzErr)
+	ok(t, err)
+	equals(t, "invalid_grant", authzErr.Code)
+	equals(t, "Grant code was revoked, expired or already used.", authzErr.Desc)
 
 }

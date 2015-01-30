@@ -67,12 +67,12 @@ func getTestAuthzCode(t *testing.T) (Provider, string) {
 	equals(t, http.StatusFound, w.Code)
 
 	redirectTo := w.Header().Get("Location")
-	url, err := url.Parse(redirectTo)
+	u, err := url.Parse(redirectTo)
 	ok(t, err)
 
-	authzCode := url.Query().Get("code")
+	authzCode := u.Query().Get("code")
 	assert(t, authzCode != "", "It looks like the authorization code came back empty: %s", authzCode)
-	equals(t, state, url.Query().Get("state"))
+	equals(t, state, u.Query().Get("state"))
 
 	return provider, authzCode
 }
@@ -185,11 +185,6 @@ func TestImplicitGrant(t *testing.T) {
 	// Implict flow should not emit refresh tokens
 	refreshToken := fragment.Get("refresh_token")
 	equals(t, "", refreshToken)
-}
-
-// TestAuthzGrantExpiration makes sure that authorization codes are actually expired after used.
-func TestAuthzGrantExpiration(t *testing.T) {
-
 }
 
 // TestReplayAttackMitigation tests that the authorization grant can be used

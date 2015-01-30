@@ -252,7 +252,11 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, provider Provider,
 func implicitGrant(w http.ResponseWriter, req *http.Request, provider Provider, authzData *AuthzData) {
 	u := authzData.Client.RedirectURL
 
-	token, err := provider.GenToken(authzData.Scopes, authzData.Client, false)
+	noAuthzGrant := types.GrantCode{
+		Scope: authzData.Scopes,
+	}
+
+	token, err := provider.GenToken(noAuthzGrant, authzData.Client, false)
 	if err != nil {
 		EncodeErrInURI(u.Query(), ErrServerError(authzData.State, err))
 		http.Redirect(w, req, u.String(), http.StatusFound)
