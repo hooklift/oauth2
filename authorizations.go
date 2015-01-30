@@ -211,7 +211,7 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, provider Provider,
 	// cross-site request forgery as described in Section 10.12.
 	state := params["state"]
 	if state == "" {
-		EncodeErrInURI(redirectURL.Query(), ErrStateRequired(state))
+		EncodeErrInURI(redirectURL, ErrStateRequired(state))
 		http.Redirect(w, req, redirectURL.String(), http.StatusFound)
 		return nil
 	}
@@ -220,7 +220,7 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, provider Provider,
 	// Value MUST be set to "code" or "token" for implicit authorizations.
 	grantType := params["response_type"]
 	if grantType != "code" && grantType != "token" {
-		EncodeErrInURI(redirectURL.Query(), ErrUnsupportedResponseType(state))
+		EncodeErrInURI(redirectURL, ErrUnsupportedResponseType(state))
 		http.Redirect(w, req, redirectURL.String(), http.StatusFound)
 		return nil
 	}
@@ -228,14 +228,14 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, provider Provider,
 	// The scope of the access request as described by Section 3.3.
 	scope := params["scope"]
 	if scope == "" {
-		EncodeErrInURI(redirectURL.Query(), ErrScopeRequired(state))
+		EncodeErrInURI(redirectURL, ErrScopeRequired(state))
 		http.Redirect(w, req, redirectURL.String(), http.StatusFound)
 		return nil
 	}
 
 	scopes, err := provider.ScopesInfo(scope)
 	if err != nil {
-		EncodeErrInURI(redirectURL.Query(), ErrServerError(state, err))
+		EncodeErrInURI(redirectURL, ErrServerError(state, err))
 		http.Redirect(w, req, redirectURL.String(), http.StatusFound)
 		return nil
 	}
@@ -258,7 +258,7 @@ func implicitGrant(w http.ResponseWriter, req *http.Request, provider Provider, 
 
 	token, err := provider.GenToken(noAuthzGrant, authzData.Client, false)
 	if err != nil {
-		EncodeErrInURI(u.Query(), ErrServerError(authzData.State, err))
+		EncodeErrInURI(u, ErrServerError(authzData.State, err))
 		http.Redirect(w, req, u.String(), http.StatusFound)
 		return
 	}

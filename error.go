@@ -75,20 +75,23 @@ var (
 )
 
 // Encodes errors as query string values in accordance to http://tools.ietf.org/html/rfc6749#section-4.1.2.1
-func EncodeErrInURI(u url.Values, err AuthzError) {
-	u.Set("error", err.Code)
+func EncodeErrInURI(u *url.URL, err AuthzError) {
+	queryStr := u.Query()
+	queryStr.Set("error", err.Code)
 
 	if err.Desc != "" {
-		u.Set("error_description", err.Desc)
+		queryStr.Set("error_description", err.Desc)
 	}
 
 	if err.State != "" {
-		u.Set("state", err.State)
+		queryStr.Set("state", err.State)
 	}
 
 	if err.URI != "" {
-		u.Set("error_uri", err.URI)
+		queryStr.Set("error_uri", err.URI)
 	}
+
+	u.RawQuery = queryStr.Encode()
 }
 
 // Errors returned to 3rd-party client apps in accordance to spec.
@@ -110,7 +113,7 @@ func ErrStateRequired(state string) AuthzError {
 
 func ErrScopeRequired(state string) AuthzError {
 	return AuthzError{
-		Code:  "access_denied",
+		Code:  "invalid_request",
 		Desc:  "scope parameter is required by this authorization server.",
 		State: state,
 	}

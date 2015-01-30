@@ -243,13 +243,60 @@ func TestAccessTokenExpiration(t *testing.T) {
 // TestScopeIsRequired makes sure it requires clients to provide access scopes when
 // getting authorization codes.
 func TestScopeIsRequired(t *testing.T) {
+	provider := test.NewProvider(true)
+	state := "my-state"
+	grantType := "code"
 
+	values := url.Values{
+		"client_id":     {provider.Client.ID},
+		"response_type": {grantType},
+		"state":         {state},
+		"redirect_uri":  {provider.Client.RedirectURL.String()},
+	}
+
+	// http://tools.ietf.org/html/rfc6749#section-4.1.1
+	queryStr := values.Encode()
+	req, err := http.NewRequest("GET",
+		"https://example.com/oauth2/authzs?"+queryStr, nil)
+	ok(t, err)
+
+	w := httptest.NewRecorder()
+	CreateGrant(w, req, provider)
+	equals(t, http.StatusFound, w.Code)
+	u, err := url.Parse(w.Header().Get("Location"))
+	ok(t, err)
+	equals(t, "invalid_request", u.Query().Get("error"))
+	equals(t, "scope parameter is required by this authorization server.", u.Query().Get("error_description"))
 }
 
 // TestStateIsRequired makes sure it requires clients to provide a state when
 // getting authorization codes.
 func TestStateIsRequired(t *testing.T) {
+	provider := test.NewProvider(true)
 
+	scopes := "read write identity"
+	grantType := "code"
+
+	values := url.Values{
+		"client_id":     {provider.Client.ID},
+		"response_type": {grantType},
+		"redirect_uri":  {provider.Client.RedirectURL.String()},
+		"scope":         {scopes},
+	}
+
+	// http://tools.ietf.org/html/rfc6749#section-4.1.1
+	queryStr := values.Encode()
+	req, err := http.NewRequest("GET",
+		"https://example.com/oauth2/authzs?"+queryStr, nil)
+	ok(t, err)
+
+	w := httptest.NewRecorder()
+	CreateGrant(w, req, provider)
+	equals(t, http.StatusFound, w.Code)
+	u, err := url.Parse(w.Header().Get("Location"))
+	ok(t, err)
+	equals(t, "invalid_request", u.Query().Get("error"))
+	equals(t, "state parameter is required by this authorization server.", u.Query().Get("error_description"))
 }
 
 // TestSecurityHeaders makes sure security headers are sent along the authorization form.
@@ -269,7 +316,7 @@ func TestRedirectURIScheme(t *testing.T) {
 		"client_id":     {provider.Client.ID},
 		"response_type": {grantType},
 		"state":         {state},
-		"redirect_uri":  {"http://unsecured.com/callback"},
+		"redirect_uri":  {"http://attacker.com/callback"},
 		"scope":         {scopes},
 	}
 
