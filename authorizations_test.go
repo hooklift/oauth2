@@ -74,6 +74,9 @@ func getTestAuthzCode(t *testing.T) (Provider, string) {
 
 	authzCode := u.Query().Get("code")
 	assert(t, authzCode != "", "It looks like the authorization code came back empty: %s", authzCode)
+
+	// makes sure the same state parameter value received to acquire
+	// the authorization grant is send back when delivering the access token.
 	equals(t, state, u.Query().Get("state"))
 
 	return provider, authzCode
@@ -256,17 +259,29 @@ func TestSecurityHeaders(t *testing.T) {
 
 // TestRedirectURIScheme makes sure clients provide redirect URLs that use TLS
 func TestRedirectURIScheme(t *testing.T) {
+	provider := test.NewProvider(true)
 
-}
+	state := "state-test"
+	scopes := "read write identity"
+	grantType := "code"
 
-// TestRedirectURIUniqueness makes sure there redirect URL is unique across the
-// entire system.
-func TestRedirectURIUniqueness(t *testing.T) {
+	values := url.Values{
+		"client_id":     {provider.Client.ID},
+		"response_type": {grantType},
+		"state":         {state},
+		"redirect_uri":  {"http://unsecured.com/callback"},
+		"scope":         {scopes},
+	}
 
-}
+	// http://tools.ietf.org/html/rfc6749#section-4.1.1
+	queryStr := values.Encode()
+	req, err := http.NewRequest("GET",
+		"https://example.com/oauth2/authzs?"+queryStr, nil)
+	ok(t, err)
 
-// TestStateParam makes sure the same state parameter value received to acquire
-// the authorization grant is send back when delivering the access token.
-func TestStateParam(t *testing.T) {
-
+	w := httptest.NewRecorder()
+	CreateGrant(w, req, provider)
+	body := w.Body.String()
+	assert(t, strings.Contains(body, "access_denied") == true, "access-denied was not found in response body")
+	assert(t, strings.Contains(body, "3rd-party client app provided an invalid redirect_uri. It does not comply with http://tools.ietf.org/html/rfc3986#section-4.3 or does not use HTTPS") == true, "error description does not match.")
 }
