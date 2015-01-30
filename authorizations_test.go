@@ -2,6 +2,7 @@ package oauth2
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/hooklift/oauth2/providers/test"
+	"github.com/hooklift/oauth2/types"
 )
 
 // getTestAuthzCode returns authorization tokens for access tokens issuing tests
@@ -187,10 +189,32 @@ func TestImplicitGrant(t *testing.T) {
 	equals(t, "", refreshToken)
 }
 
-// TestReplayAttackMitigation tests that the authorization grant can be used
-// only once, and that if there are attempts to use it multiple times, it is
-// revoked along with all the access tokens generated with it.
-func TestReplayAttackMitigation(t *testing.T) {
+// TestReplayAttackProtection tests that the authorization grant can be used
+// only once.
+func TestReplayAttackProtection(t *testing.T) {
+	provider, authzCode := getTestAuthzCode(t)
+
+	req := AuthzGrantTokenRequestTest(t, "authorization_code", authzCode)
+	req.SetBasicAuth("test_client_id", "test_client_id")
+
+	w := httptest.NewRecorder()
+	IssueAccessToken(w, req, provider)
+	token := types.Token{}
+	err := json.Unmarshal(w.Body.Bytes(), &token)
+	ok(t, err)
+	equals(t, "bearer", token.Type)
+	equals(t, "600", token.ExpiresIn)
+
+	w2 := httptest.NewRecorder()
+	IssueAccessToken(w2, req, provider)
+
+	// http://tools.ietf.org/html/rfc6749#section-4.1.4
+	authzErr := AuthzError{}
+	//log.Printf("%s", w2.Body.String())
+	err = json.Unmarshal(w2.Body.Bytes(), &authzErr)
+	ok(t, err)
+	equals(t, "invalid_grant", authzErr.Code)
+	equals(t, "Grant code was revoked, expired or already used.", authzErr.Desc)
 
 }
 
