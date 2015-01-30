@@ -301,7 +301,34 @@ func TestStateIsRequired(t *testing.T) {
 
 // TestSecurityHeaders makes sure security headers are sent along the authorization form.
 func TestSecurityHeaders(t *testing.T) {
+	provider := test.NewProvider(true)
 
+	state := "mystate"
+	scopes := "read write identity"
+	grantType := "code"
+
+	values := url.Values{
+		"client_id":     {provider.Client.ID},
+		"state":         {state},
+		"response_type": {grantType},
+		"redirect_uri":  {provider.Client.RedirectURL.String()},
+		"scope":         {scopes},
+	}
+
+	// http://tools.ietf.org/html/rfc6749#section-4.1.1
+	queryStr := values.Encode()
+	req, err := http.NewRequest("GET",
+		"https://example.com/oauth2/authzs?"+queryStr, nil)
+	ok(t, err)
+
+	w := httptest.NewRecorder()
+	CreateGrant(w, req, provider)
+	//log.Printf("%+v", w.HeaderMap)
+
+	equals(t, "max-age=0", w.Header().Get("Strict-Transport-Security"))
+	equals(t, "1; mode=block", w.Header().Get("X-XSS-Protection"))
+	equals(t, "nosniff", w.Header().Get("X-Content-Type-Options"))
+	equals(t, "SAMEORIGIN", w.Header().Get("X-Frame-Options"))
 }
 
 // TestRedirectURIScheme makes sure clients provide redirect URLs that use TLS

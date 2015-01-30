@@ -48,6 +48,14 @@ func TestAuthzGrantTokenRequest(t *testing.T) {
 	//log.Printf("%s", w.Body.String())
 	equals(t, "bearer", accessToken.Type)
 	equals(t, "600", accessToken.ExpiresIn)
+
+	assert(t, accessToken.RefreshToken != "", "we were expecting a refresh token.")
+
+	// Tests that cache headers are being sent when generating access tokens using
+	// authorization grant codes.
+	equals(t, "no-store", w.Header().Get("Cache-Control"))
+	equals(t, "no-cache", w.Header().Get("Pragma"))
+	equals(t, "0", w.Header().Get("Expires"))
 }
 
 // TestClientAuthRequired tests that client is required to always authenticate in order
@@ -93,6 +101,14 @@ func TestResourceOwnerCredentialsGrant(t *testing.T) {
 	//log.Printf("%s", w.Body.String())
 	equals(t, "bearer", accessToken.Type)
 	equals(t, "600", accessToken.ExpiresIn)
+
+	assert(t, accessToken.RefreshToken != "", "we were expecting a refresh token.")
+
+	// Tests that cache headers are being sent when generating tokens using
+	// resource owner credentials.
+	equals(t, "no-store", w.Header().Get("Cache-Control"))
+	equals(t, "no-cache", w.Header().Get("Pragma"))
+	equals(t, "0", w.Header().Get("Expires"))
 }
 
 // TestClientCredentialsGrant tests happy path for http://tools.ietf.org/html/rfc6749#section-4.4
@@ -121,6 +137,12 @@ func TestClientCredentialsGrant(t *testing.T) {
 
 	// A refresh token SHOULD NOT be included.
 	equals(t, "", accessToken.RefreshToken)
+
+	// Tests that cache headers are being sent when generating tokens using
+	// client credentials.
+	equals(t, "no-store", w.Header().Get("Cache-Control"))
+	equals(t, "no-cache", w.Header().Get("Pragma"))
+	equals(t, "0", w.Header().Get("Expires"))
 }
 
 // TestRefreshToken tests happy path for http://tools.ietf.org/html/rfc6749#section-6
@@ -160,7 +182,13 @@ func TestRefreshToken(t *testing.T) {
 	equals(t, "600", token.ExpiresIn)
 	assert(t, accessToken.Value != token.Value, "We got the same access token, it should be different!")
 	assert(t, token.Value != "", "We were expecting to get a token and instead we got: %s", token.Value)
+	assert(t, token.RefreshToken != "", "we were expecting a refresh token.")
 	assert(t, token.RefreshToken != accessToken.RefreshToken, "We got the same refresh token, it should be different!")
+
+	// Tests that cache headers are being sent when refreshing tokens
+	equals(t, "no-store", w.Header().Get("Cache-Control"))
+	equals(t, "no-cache", w.Header().Get("Pragma"))
+	equals(t, "0", w.Header().Get("Expires"))
 }
 
 // TestAuthzCodeOwnership tests that the authorization code was issued to the client
