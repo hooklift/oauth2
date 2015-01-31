@@ -178,8 +178,6 @@ func AuthzHandler(next http.Handler, provider Provider) http.Handler {
 		}
 
 		// Check that token's scope covers the requested resource
-		// TODO(c4milo): O(n^2), hopefully a list of scopes is short, so this
-		// should be fine for most cases, for now.
 		resourceScopes := pkg.StringifyScopes(scopes)
 		// log.Printf("[DEBUG] resource: %s", resourceScopes)
 		// log.Printf("[DEBUG] requested: %s", pkg.StringifyScopes(tokenInfo.Scope))

@@ -3,14 +3,15 @@ package oauth2
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/hooklift/oauth2/types"
 )
 
+// getAccessTokenTest is a helper function to generate a valid grant and an access token.
 func getAccessTokenTest(t *testing.T) (Provider, types.Token) {
 	provider, authzCode := getTestAuthzCode(t)
 
@@ -26,6 +27,8 @@ func getAccessTokenTest(t *testing.T) (Provider, types.Token) {
 	return provider, token
 }
 
+// TestAuthzHandler tests that we are effectively able to protect server resources
+// using AuthzHandler
 func TestAuthzHandler(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.Handle("/protected_resource", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -36,23 +39,31 @@ func TestAuthzHandler(t *testing.T) {
 	ts := httptest.NewServer(AuthzHandler(mux, provider))
 	defer ts.Close()
 
-	r1, err := http.NewRequest("GET", ts.URL, nil)
-	ok(t, err)
+	tests := []struct {
+		url    string
+		token  string
+		status int
+		body   string
+		err    string
+	}{
+		{ts.URL, "", http.StatusUnauthorized, "", "invalid_token"},
+		{ts.URL + "/protected_resource", token.Value, http.StatusOK, "success!", ""},
+	}
 
-	res1, err := http.DefaultClient.Do(r1)
-	ok(t, err)
-	equals(t, res1.StatusCode, http.StatusUnauthorized)
+	for _, tt := range tests {
+		req, err := http.NewRequest("GET", tt.url, nil)
+		ok(t, err)
 
-	r2, err := http.NewRequest("GET", ts.URL+"/protected_resource", nil)
-	ok(t, err)
+		req.Header.Set("Authorization", "Bearer "+tt.token)
+		res, err := http.DefaultClient.Do(req)
+		ok(t, err)
+		equals(t, tt.status, res.StatusCode)
 
-	r2.Header.Set("Authorization", "Bearer "+token.Value)
-	res2, err := http.DefaultClient.Do(r2)
-	ok(t, err)
+		oauth2Err := res.Header.Get("WWW-Authenticate")
+		equals(t, strings.Contains(oauth2Err, tt.err), true)
 
-	log.Printf("%s", res2.Header.Get("Www-Authenticate"))
-	equals(t, res2.StatusCode, http.StatusOK)
-	data, err := ioutil.ReadAll(res2.Body)
-	ok(t, err)
-	equals(t, string(data[:]), "success!")
+		body, err := ioutil.ReadAll(res.Body)
+		ok(t, err)
+		equals(t, tt.body, string(body[:]))
+	}
 }

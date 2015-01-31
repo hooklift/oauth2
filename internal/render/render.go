@@ -118,5 +118,5 @@ func Unauthorized(w http.ResponseWriter, opts Options) {
 
 	cache(w.Header(), opts)
 	w.WriteHeader(opts.Status)
-	w.Write([]byte{0x0})
+	w.Write([]byte(""))
 }
