@@ -15,8 +15,7 @@ in order to minimize risk of CSRF attacks.
 * Does refresh-token rotation upon access-token refresh.
 
 ## How to use
-This library was designed as a regular Go's HTTP handler. An example about how to use it,
-in general terms, is below:
+This library was designed as a regular Go's HTTP handler. A brief example:
 
 ```go
 package main
