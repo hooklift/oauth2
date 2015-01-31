@@ -226,11 +226,11 @@ func (p *Provider) AuthenticateClient(username, password string) (types.Client, 
 	return p.Client, nil
 }
 
-func (p *Provider) GrantInfo(client types.Client, code string) (types.GrantCode, error) {
+func (p *Provider) GrantInfo(code string) (types.GrantCode, error) {
 	return p.GrantCodes[code], nil
 }
 
-func (p *Provider) TokenInfo(client types.Client, code string) (types.Token, error) {
+func (p *Provider) TokenInfo(code string) (types.Token, error) {
 	if v, ok := p.AccessTokens[code]; ok {
 		return v, nil
 	}
@@ -240,4 +240,12 @@ func (p *Provider) TokenInfo(client types.Client, code string) (types.Token, err
 
 func (p *Provider) AuthenticateUser(username, password string) bool {
 	return true
+}
+
+func (p *Provider) ResourceScopes(url *url.URL) ([]types.Scope, error) {
+	return []types.Scope{
+		types.Scope{ID: "identity"},
+		types.Scope{ID: "read"},
+		types.Scope{ID: "write"},
+	}, nil
 }

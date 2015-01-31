@@ -65,7 +65,7 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, provider Provider,
 		return
 	}
 
-	grantCode, err := provider.GrantInfo(cinfo, code)
+	grantCode, err := provider.GrantInfo(code)
 	if err != nil {
 		e := ErrInvalidGrant
 		e.Desc = err.Error()
@@ -206,7 +206,7 @@ func clientCredentialsGrant(w http.ResponseWriter, req *http.Request, provider P
 // Implements http://tools.ietf.org/html/rfc6749#section-6
 func refreshToken(w http.ResponseWriter, req *http.Request, provider Provider, cinfo types.Client) {
 	code := req.FormValue("refresh_token")
-	token, err := provider.TokenInfo(cinfo, code)
+	token, err := provider.TokenInfo(code)
 	if err != nil {
 		render.JSON(w, render.Options{
 			Status: http.StatusInternalServerError,

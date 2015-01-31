@@ -212,7 +212,7 @@ func TestReplayAttackProtection(t *testing.T) {
 	IssueAccessToken(w2, req, provider)
 
 	// http://tools.ietf.org/html/rfc6749#section-4.1.4
-	authzErr := AuthzError{}
+	authzErr := types.AuthzError{}
 	//log.Printf("%s", w2.Body.String())
 	err = json.Unmarshal(w2.Body.Bytes(), &authzErr)
 	ok(t, err)

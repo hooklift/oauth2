@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/hooklift/oauth2/types"
 )
 
 // Errors
@@ -103,4 +105,18 @@ func HTML(w http.ResponseWriter, opts Options) error {
 	w.Write(buf.Bytes())
 
 	return nil
+}
+
+func Unauthorized(w http.ResponseWriter, opts Options) {
+	value := "Bearer "
+
+	if err, ok := opts.Data.(types.AuthzError); ok {
+		value += err.Error()
+	}
+
+	w.Header().Set("WWW-Authenticate", value)
+
+	cache(w.Header(), opts)
+	w.WriteHeader(opts.Status)
+	w.Write([]byte{0x0})
 }

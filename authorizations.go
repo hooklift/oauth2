@@ -25,7 +25,7 @@ type AuthzData struct {
 	// Requested scope access from 3rd-party client
 	Scopes []types.Scope
 	// List of errors to display to the resource owner.
-	Errors []AuthzError
+	Errors []types.AuthzError
 	// Grant type is either "code" or "token" for implicit authorizations.
 	GrantType string
 	// State can be used to store CSRF tokens by the 3rd-party client app
@@ -85,7 +85,7 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, provider Provider) {
 		render.HTML(w, render.Options{
 			Status: http.StatusOK,
 			Data: AuthzData{
-				Errors: []AuthzError{
+				Errors: []types.AuthzError{
 					ErrServerError("", err),
 				}},
 			Template: provider.AuthzForm(),
@@ -114,7 +114,7 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, provider Provider,
 		render.HTML(w, render.Options{
 			Status: http.StatusOK,
 			Data: AuthzData{
-				Errors: []AuthzError{
+				Errors: []types.AuthzError{
 					ErrClientIDMissing,
 				},
 			},
@@ -128,7 +128,7 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, provider Provider,
 		render.HTML(w, render.Options{
 			Status: http.StatusOK,
 			Data: AuthzData{
-				Errors: []AuthzError{
+				Errors: []types.AuthzError{
 					ErrServerError("", err),
 				},
 			},
@@ -141,7 +141,7 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, provider Provider,
 		render.HTML(w, render.Options{
 			Status: http.StatusOK,
 			Data: AuthzData{
-				Errors: []AuthzError{
+				Errors: []types.AuthzError{
 					ErrClientIDNotFound,
 				},
 			},
@@ -164,7 +164,7 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, provider Provider,
 			render.HTML(w, render.Options{
 				Status: http.StatusOK,
 				Data: AuthzData{
-					Errors: []AuthzError{
+					Errors: []types.AuthzError{
 						ErrRedirectURLInvalid,
 					},
 				},
@@ -180,7 +180,7 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, provider Provider,
 		render.HTML(w, render.Options{
 			Status: http.StatusOK,
 			Data: AuthzData{
-				Errors: []AuthzError{
+				Errors: []types.AuthzError{
 					ErrRedirectURLInvalid,
 				},
 			},
@@ -196,7 +196,7 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, provider Provider,
 		render.HTML(w, render.Options{
 			Status: http.StatusOK,
 			Data: AuthzData{
-				Errors: []AuthzError{
+				Errors: []types.AuthzError{
 					ErrRedirectURLMismatch,
 				},
 			},

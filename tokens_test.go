@@ -70,7 +70,7 @@ func TestAuthzGrantClientAuthRequired(t *testing.T) {
 	// Tests for a 400 instead of 401 in accordance to http://tools.ietf.org/html/rfc6749#section-5.1
 	equals(t, http.StatusBadRequest, w.Code)
 
-	appErr := AuthzError{}
+	appErr := types.AuthzError{}
 	err := json.Unmarshal(w.Body.Bytes(), &appErr)
 	ok(t, err)
 	equals(t, "unauthorized_client", appErr.Code)
@@ -203,7 +203,7 @@ func TestAuthzCodeOwnership(t *testing.T) {
 	IssueAccessToken(w, req, provider)
 
 	// http://tools.ietf.org/html/rfc6749#section-4.1.4
-	authzErr := AuthzError{}
+	authzErr := types.AuthzError{}
 	//log.Printf("%s", w.Body.String())
 	err := json.Unmarshal(w.Body.Bytes(), &authzErr)
 	ok(t, err)

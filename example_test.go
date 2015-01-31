@@ -13,10 +13,9 @@ func ExampleExamples() {
 		w.Write([]byte("Hellow World!"))
 	})
 
-	reqHandler := Handler(
-		mux,
-		test.NewProvider(true),
-	)
+	provider := test.NewProvider(true)
+	authzHandler := AuthzHandler(mux, provider)
+	oauth2Handlers := Handler(authzHandler, provider)
 
-	log.Fatal(http.ListenAndServe(":3000", reqHandler))
+	log.Fatal(http.ListenAndServe(":3000", oauth2Handlers))
 }

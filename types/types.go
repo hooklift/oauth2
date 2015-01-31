@@ -2,6 +2,7 @@
 package types
 
 import (
+	"fmt"
 	"net/url"
 	"time"
 )
@@ -67,4 +68,27 @@ type Token struct {
 	RefreshToken string `json:"refresh_token,omitempty"`
 	// Authorization scoped allowed for this token
 	Scope []Scope `json:"-"`
+	// Whether or not this token was revoked.
+	IsRevoked bool `json:"-"`
+	// Whether or not this token was expired.
+	IsExpired bool `json:"-"`
+}
+
+type AuthzError struct {
+	Code  string `json:"error"`
+	Desc  string `json:"error_description"`
+	URI   string `json:"error_uri,omitempty"`
+	State string `json:"state,omitempty"`
+}
+
+func (a *AuthzError) Error() string {
+	str := fmt.Sprintf(`error="%s"`, a.Code)
+	if a.Desc != "" {
+		str += fmt.Sprintf(`,error_description="%s"`, a.Desc)
+	}
+
+	if a.URI != "" {
+		str += fmt.Sprintf(`,error_uri="%s"`, a.URI)
+	}
+	return str
 }

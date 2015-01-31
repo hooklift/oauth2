@@ -7,9 +7,12 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
+	"github.com/hooklift/oauth2/internal/render"
+	"github.com/hooklift/oauth2/pkg"
 	"github.com/hooklift/oauth2/types"
 )
 
@@ -101,13 +104,101 @@ type Provider interface {
 	AuthenticateUser(username, password string) (valid bool)
 
 	// GrantInfo returns information about the authorization grant code.
-	GrantInfo(client types.Client, code string) (types.GrantCode, error)
+	GrantInfo(code string) (types.GrantCode, error)
 
 	// TokenInfo returns information about one specific token.
-	TokenInfo(client types.Client, code string) (types.Token, error)
+	TokenInfo(token string) (types.Token, error)
+
+	// ResourceScopes returns the scopes associated with a given resource
+	ResourceScopes(url *url.URL) ([]types.Scope, error)
 }
 
-// Handler handles OAuth2 requests.
+// AuthzHandler is intended to be used at the resource server side to protect and validate
+// access to its resources. In accordance with http://tools.ietf.org/html/rfc6749#section-7
+// and http://tools.ietf.org/html/rfc6750
+func AuthzHandler(next http.Handler, provider Provider) http.Handler {
+	if provider == nil {
+		log.Fatalln("An implementation of the oauth2.Provider interface is expected")
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		var token string
+		auth := req.Header.Get("Authorization")
+		if auth == "" {
+			token = req.FormValue("access_token")
+		} else {
+			if !strings.HasPrefix(auth, "Bearer ") {
+				render.Unauthorized(w, render.Options{
+					Status: http.StatusUnauthorized,
+					Data:   ErrUnsupportedTokenType,
+				})
+				return
+			}
+
+			token = strings.TrimPrefix(auth, "Bearer ")
+		}
+
+		// If the request lacks any authentication information (e.g., the client
+		// was unaware that authentication is necessary or attempted using an
+		// unsupported authentication method), the resource server SHOULD NOT
+		// include an error code or other error information.
+		if token == "" {
+			render.Unauthorized(w, render.Options{
+				Status: http.StatusUnauthorized,
+			})
+			return
+		}
+
+		// Get token info from Authorizer
+		tokenInfo, err := provider.TokenInfo(token)
+		if err != nil {
+			render.Unauthorized(w, render.Options{
+				Status: http.StatusUnauthorized,
+				Data:   ErrServerError("", err),
+			})
+			return
+		}
+
+		if tokenInfo.IsExpired || tokenInfo.IsRevoked {
+			render.Unauthorized(w, render.Options{
+				Status: http.StatusUnauthorized,
+				Data:   ErrInvalidToken,
+			})
+			return
+		}
+
+		// Get scopes information for the given resource
+		scopes, err := provider.ResourceScopes(req.URL)
+		if err != nil {
+			render.Unauthorized(w, render.Options{
+				Status: http.StatusUnauthorized,
+				Data:   ErrServerError("", err),
+			})
+			return
+		}
+
+		// Check that token's scope covers the requested resource
+		// TODO(c4milo): O(n^2), hopefully a list of scopes is short, so this
+		// should be fine for most cases, for now.
+		resourceScopes := pkg.StringifyScopes(scopes)
+		// log.Printf("[DEBUG] resource: %s", resourceScopes)
+		// log.Printf("[DEBUG] requested: %s", pkg.StringifyScopes(tokenInfo.Scope))
+		for _, scope := range tokenInfo.Scope {
+			if !strings.Contains(resourceScopes, scope.ID) {
+				render.Unauthorized(w, render.Options{
+					Status: http.StatusForbidden,
+					Data:   ErrInsufficientScope,
+				})
+				return
+			}
+		}
+
+		next.ServeHTTP(w, req)
+	})
+}
+
+// Handler handles OAuth2 requests for getting authorization grants as well as
+// access and refresh tokens.
 func Handler(next http.Handler, provider Provider) http.Handler {
 	if provider == nil {
 		log.Fatalln("An implementation of the oauth2.Provider interface is expected")
@@ -133,5 +224,6 @@ func Handler(next http.Handler, provider Provider) http.Handler {
 				return
 			}
 		}
+		next.ServeHTTP(w, req)
 	})
 }
