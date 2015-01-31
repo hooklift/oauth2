@@ -1,7 +1,9 @@
 package oauth2
 
 import (
+	"log"
 	"net/http"
+	"path"
 	"strings"
 
 	"github.com/hooklift/oauth2/internal/render"
@@ -12,11 +14,12 @@ import (
 // TokenHandlers is a map to functions where each function handles a particular HTTP
 // verb or method.
 var TokenHandlers map[string]func(http.ResponseWriter, *http.Request, Provider) = map[string]func(http.ResponseWriter, *http.Request, Provider){
-	"POST": IssueAccessToken,
+	"POST":   IssueToken,
+	"DELETE": RevokeToken,
 }
 
-// IssueAccessToken handles all requests going to tokens endpoint.
-func IssueAccessToken(w http.ResponseWriter, req *http.Request, provider Provider) {
+// IssueToken handles all requests going to tokens endpoint.
+func IssueToken(w http.ResponseWriter, req *http.Request, provider Provider) {
 	username, password, ok := req.BasicAuth()
 	cinfo, err := provider.AuthenticateClient(username, password)
 	if !ok || err != nil {
@@ -272,4 +275,50 @@ func refreshToken(w http.ResponseWriter, req *http.Request, provider Provider, c
 }
 
 // Implements https://tools.ietf.org/html/rfc7009
-func revokeToken(w http.ResponseWriter, req *http.Request, provider Provider, cinfo types.Client) {}
+// It does not take into account token_type_hint as the common use case is to
+// have access and refresh tokens uniquely identified throughout the system. That said,
+// unsupported_token_type error responses are not produced by this implementation either.
+func RevokeToken(w http.ResponseWriter, req *http.Request, provider Provider) {
+	username, password, ok := req.BasicAuth()
+	cinfo, err := provider.AuthenticateClient(username, password)
+	if !ok || err != nil {
+		// TODO(c4milo): verify other implementations to see if they reply
+		// with 401 instead of 400. Spec is sort of contradictory in this regard.
+		render.JSON(w, render.Options{
+			Status: http.StatusBadRequest,
+			Data:   ErrUnauthorizedClient,
+		})
+		return
+	}
+
+	token := path.Base(req.URL.Path)
+	tokenInfo, err := provider.TokenInfo(token)
+	if err != nil {
+		log.Printf("[ERROR] Error getting token info: %+v", err)
+		render.JSON(w, render.Options{
+			Status: http.StatusServiceUnavailable,
+		})
+		return
+	}
+
+	if tokenInfo.ClientID != cinfo.ID {
+		render.JSON(w, render.Options{
+			Status: http.StatusBadRequest,
+			Data:   ErrClientIDMismatch,
+		})
+		return
+	}
+
+	err = provider.RevokeToken(token)
+	if err != nil {
+		log.Printf("[ERROR] Error revoking token: %+v", err)
+		render.JSON(w, render.Options{
+			Status: http.StatusServiceUnavailable,
+		})
+		return
+	}
+
+	render.JSON(w, render.Options{
+		Status: http.StatusOK,
+	})
+}

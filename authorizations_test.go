@@ -201,7 +201,7 @@ func TestReplayAttackProtection(t *testing.T) {
 	req.SetBasicAuth("test_client_id", "test_client_id")
 
 	w := httptest.NewRecorder()
-	IssueAccessToken(w, req, provider)
+	IssueToken(w, req, provider)
 	token := types.Token{}
 	err := json.Unmarshal(w.Body.Bytes(), &token)
 	ok(t, err)
@@ -209,7 +209,7 @@ func TestReplayAttackProtection(t *testing.T) {
 	equals(t, "600", token.ExpiresIn)
 
 	w2 := httptest.NewRecorder()
-	IssueAccessToken(w2, req, provider)
+	IssueToken(w2, req, provider)
 
 	// http://tools.ietf.org/html/rfc6749#section-4.1.4
 	authzErr := types.AuthzError{}

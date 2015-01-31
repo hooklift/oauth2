@@ -61,7 +61,7 @@ var (
 
 	ErrClientIDMismatch = types.AuthzError{
 		Code: "invalid_request",
-		Desc: "Authenticated client did not generate refresh token used.",
+		Desc: "Authenticated client did not generate token used.",
 	}
 
 	ErrUnsupportedTokenType = types.AuthzError{

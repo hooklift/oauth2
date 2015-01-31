@@ -19,7 +19,7 @@ func getAccessTokenTest(t *testing.T) (Provider, types.Token) {
 	req.SetBasicAuth("testclient", "testclient")
 
 	w := httptest.NewRecorder()
-	IssueAccessToken(w, req, provider)
+	IssueToken(w, req, provider)
 
 	token := types.Token{}
 	err := json.Unmarshal(w.Body.Bytes(), &token)

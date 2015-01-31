@@ -57,11 +57,6 @@ func (p *Provider) GenGrantCode(client types.Client, scopes []types.Scope) (type
 	return a, nil
 }
 
-func (p *Provider) RevokeGrantCode(code string) error {
-	delete(p.GrantCodes, code)
-	return nil
-}
-
 func (p *Provider) ScopesInfo(scopes string) ([]types.Scope, error) {
 	s := strings.Split(scopes, " ")
 	scope := make([]types.Scope, 0)
@@ -99,6 +94,7 @@ func (p *Provider) GenToken(grantCode types.GrantCode, client types.Client, refr
 
 func (p *Provider) RevokeToken(token string) error {
 	delete(p.AccessTokens, token)
+	delete(p.RefreshTokens, token)
 	return nil
 }
 
@@ -174,10 +170,6 @@ func (p *Provider) TokenEndpoint() string {
 
 func (p *Provider) AuthzEndpoint() string {
 	return "/oauth2/authzs"
-}
-
-func (p *Provider) RevokeEndpoint() string {
-	return "/oauth2/revoke"
 }
 
 func (p *Provider) TokenExpiration() time.Duration {

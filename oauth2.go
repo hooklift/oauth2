@@ -32,9 +32,6 @@ type Provider interface {
 	// -- http://tools.ietf.org/html/rfc6749#section-4.1.2
 	GenGrantCode(client types.Client, scopes []types.Scope) (code types.GrantCode, err error)
 
-	// RevokeGrantCode expires the grant code as well as all access and refresh tokens generated with it.
-	RevokeGrantCode(code string) error
-
 	// ScopesInfo parses the list of scopes requested by the client and
 	// returns its descriptions for the resource owner to fully understand
 	// what he is authorizing the client to access to. An error is returned
@@ -78,10 +75,6 @@ type Provider interface {
 	//
 	// -- http://tools.ietf.org/html/rfc6749#section-3.1.1
 	AuthzEndpoint() string
-
-	// RevokeEndpoint installs a request handler for the returned endpoint to
-	// process token revokation requests.
-	RevokeEndpoint() string
 
 	// STSMaxAge returns a maximum age value for Strict Transport Security header
 	STSMaxAge() time.Duration
@@ -206,7 +199,6 @@ func Handler(next http.Handler, provider Provider) http.Handler {
 	registry := map[string]map[string]func(http.ResponseWriter, *http.Request, Provider){
 		provider.AuthzEndpoint(): AuthzHandlers,
 		provider.TokenEndpoint(): TokenHandlers,
-		// TODO(c4milo): URL handlers for revoking tokens and grants
 	}
 
 	// Locates and runs specific OAuth2 handler for request's method

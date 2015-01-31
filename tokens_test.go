@@ -38,7 +38,7 @@ func TestAuthzGrantTokenRequest(t *testing.T) {
 	req.SetBasicAuth("testclient", "testclient")
 
 	w := httptest.NewRecorder()
-	IssueAccessToken(w, req, provider)
+	IssueToken(w, req, provider)
 
 	// http://tools.ietf.org/html/rfc6749#section-4.1.4
 	accessToken := types.Token{}
@@ -66,7 +66,7 @@ func TestAuthzGrantClientAuthRequired(t *testing.T) {
 	req := AuthzGrantTokenRequestTest(t, "authorization_code", authzCode)
 
 	w := httptest.NewRecorder()
-	IssueAccessToken(w, req, provider)
+	IssueToken(w, req, provider)
 	// Tests for a 400 instead of 401 in accordance to http://tools.ietf.org/html/rfc6749#section-5.1
 	equals(t, http.StatusBadRequest, w.Code)
 
@@ -92,7 +92,7 @@ func TestResourceOwnerCredentialsGrant(t *testing.T) {
 	req.SetBasicAuth("testclient", "testclient")
 
 	w := httptest.NewRecorder()
-	IssueAccessToken(w, req, provider)
+	IssueToken(w, req, provider)
 
 	accessToken := types.Token{}
 	err = json.Unmarshal(w.Body.Bytes(), &accessToken)
@@ -125,7 +125,7 @@ func TestClientCredentialsGrant(t *testing.T) {
 	req.SetBasicAuth("testclient", "testclient")
 
 	w := httptest.NewRecorder()
-	IssueAccessToken(w, req, provider)
+	IssueToken(w, req, provider)
 
 	accessToken := types.Token{}
 	err = json.Unmarshal(w.Body.Bytes(), &accessToken)
@@ -171,7 +171,7 @@ func TestRefreshToken(t *testing.T) {
 	req.SetBasicAuth("testclient", "testclient")
 
 	w := httptest.NewRecorder()
-	IssueAccessToken(w, req, provider)
+	IssueToken(w, req, provider)
 
 	token := types.Token{}
 	err = json.Unmarshal(w.Body.Bytes(), &token)
@@ -200,7 +200,7 @@ func TestAuthzCodeOwnership(t *testing.T) {
 	req.SetBasicAuth("boo", "boo")
 
 	w := httptest.NewRecorder()
-	IssueAccessToken(w, req, provider)
+	IssueToken(w, req, provider)
 
 	// http://tools.ietf.org/html/rfc6749#section-4.1.4
 	authzErr := types.AuthzError{}
@@ -209,4 +209,30 @@ func TestAuthzCodeOwnership(t *testing.T) {
 	ok(t, err)
 	equals(t, "invalid_grant", authzErr.Code)
 	equals(t, "Grant code was generated for a different redirect URI.", authzErr.Desc)
+}
+
+// TestRevokeToken tests happy path for revoking refresh and access tokens.
+// In accordance with https://tools.ietf.org/html/rfc7009
+func TestRevokeToken(t *testing.T) {
+	provider, authzCode := getTestAuthzCode(t)
+
+	r1 := AuthzGrantTokenRequestTest(t, "authorization_code", authzCode)
+	r1.SetBasicAuth("testclient", "testclient")
+
+	w := httptest.NewRecorder()
+	IssueToken(w, r1, provider)
+
+	// http://tools.ietf.org/html/rfc6749#section-4.1.4
+	accessToken := types.Token{}
+	err := json.Unmarshal(w.Body.Bytes(), &accessToken)
+	ok(t, err)
+
+	r2, err := http.NewRequest("DELETE", "https://example.com/oauth2/tokens/"+accessToken.Value, nil)
+	ok(t, err)
+	r2.Header.Set("Content-type", "application/x-www-form-urlencoded")
+	r2.SetBasicAuth("testclient", "testclient")
+
+	w2 := httptest.NewRecorder()
+	RevokeToken(w2, r2, provider)
+	equals(t, http.StatusOK, w2.Code)
 }
