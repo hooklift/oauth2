@@ -12,9 +12,8 @@ import (
 // Handlers is a map to functions where each function handles a particular HTTP
 // verb or method.
 var AuthzHandlers map[string]func(http.ResponseWriter, *http.Request, Provider) = map[string]func(http.ResponseWriter, *http.Request, Provider){
-	"GET":    CreateGrant,
-	"POST":   CreateGrant,
-	"DELETE": RevokeGrant,
+	"GET":  CreateGrant,
+	"POST": CreateGrant,
 }
 
 // AuthzData defines properties used to render the authorization form view
@@ -273,9 +272,4 @@ func implicitGrant(w http.ResponseWriter, req *http.Request, provider Provider, 
 
 	u.Fragment = "#" + query.Encode()
 	http.Redirect(w, req, u.String(), http.StatusFound)
-}
-
-// RevokeGrant invalidates all tokens issued with the given grant authorization code.
-func RevokeGrant(w http.ResponseWriter, req *http.Request, provider Provider) {
-	//TODO(c4milo)
 }
