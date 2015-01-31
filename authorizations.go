@@ -263,12 +263,13 @@ func implicitGrant(w http.ResponseWriter, req *http.Request, provider Provider, 
 		return
 	}
 
-	query := url.Values{}
-	query.Set("access_token", token.Value)
-	query.Set("token_type", token.Type)
-	query.Set("expires_in", token.ExpiresIn)
-	query.Set("scope", pkg.StringifyScopes(token.Scope))
-	query.Set("state", authzData.State)
+	query := url.Values{
+		"access_token": {token.Value},
+		"token_type":   {token.Type},
+		"expires_in":   {token.ExpiresIn},
+		"scope":        {pkg.StringifyScopes(token.Scope)},
+		"state":        {authzData.State},
+	}
 
 	u.Fragment = "#" + query.Encode()
 	http.Redirect(w, req, u.String(), http.StatusFound)

@@ -10,7 +10,9 @@ by passing a STS max-age of 0.
 * `X-XSS-Protection` is always sent.
 * Always requires 3rd-party client apps to send the `state` request parameter
 in order to minimize risk of CSRF attacks.
-* Always requires clients to use callback URLs with a HTTPS scheme.
+* Always requires clients to register redirect URIs with a HTTPS scheme.
+* Does not allow clients to use dynamic redirect URIs.
+* Does refresh-token rotation upon access-token refresh.
 
 ## How to use
 This library was designed as a regular Go's HTTP handler. An example about how to use,
