@@ -107,6 +107,8 @@ func HTML(w http.ResponseWriter, opts Options) error {
 	return nil
 }
 
+// Unauthorized renders unauthorized errors when using Bearer tokens.
+// In accordance with http://tools.ietf.org/html/rfc6750#section-3.1
 func Unauthorized(w http.ResponseWriter, opts Options) {
 	value := "Bearer "
 
