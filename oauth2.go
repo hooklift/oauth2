@@ -19,8 +19,31 @@ import (
 // Provider defines functions required by the oauth2 package to properly work.
 // Users of this package are required to implement them.
 type Provider interface {
+	// AuthenticateClient authenticates a previously registered client.
+	AuthenticateClient(username, password string) (types.Client, error)
+
+	// AuthenticateUser authenticates resource owner.
+	AuthenticateUser(username, password string) (valid bool)
+
 	// ClientInfo returns 3rd-party client information
 	ClientInfo(clientID string) (info types.Client, err error)
+
+	// GrantInfo returns information about the authorization grant code.
+	GrantInfo(code string) (types.GrantCode, error)
+
+	// TokenInfo returns information about one specific token.
+	TokenInfo(token string) (types.Token, error)
+
+	// ScopesInfo parses the list of scopes requested by the client and
+	// returns its descriptions for the resource owner to fully understand
+	// what he is authorizing the client to access to. An error is returned
+	// if the scopes list does not comply with http://tools.ietf.org/html/rfc6749#section-3.3
+	//
+	// Unrecognized or non-existent scopes are ignored.
+	ScopesInfo(scopes string) ([]types.Scope, error)
+
+	// ResourceScopes returns the scopes associated with a given resource
+	ResourceScopes(url *url.URL) ([]types.Scope, error)
 
 	// GenGrantCode issues and stores an authorization grant code, in a persistent storage.
 	// The authorization code MUST expire shortly after it is issued to mitigate
@@ -31,14 +54,6 @@ type Provider interface {
 	// code is bound to the client identifier and redirection URI.
 	// -- http://tools.ietf.org/html/rfc6749#section-4.1.2
 	GenGrantCode(client types.Client, scopes []types.Scope) (code types.GrantCode, err error)
-
-	// ScopesInfo parses the list of scopes requested by the client and
-	// returns its descriptions for the resource owner to fully understand
-	// what he is authorizing the client to access to. An error is returned
-	// if the scopes list does not comply with http://tools.ietf.org/html/rfc6749#section-3.3
-	//
-	// Unrecognized or non-existent scopes are ignored.
-	ScopesInfo(scopes string) ([]types.Scope, error)
 
 	// GenToken generates and stores access and refresh tokens with the given
 	// client information and authorization scope.
@@ -89,21 +104,6 @@ type Provider interface {
 	// AuthzExpiration returns an expiration value for authorization grant codes.
 	// They should be ideally very low. For instance: 1 minute.
 	AuthzExpiration() time.Duration
-
-	// AuthenticateClient authenticates a previously registered client.
-	AuthenticateClient(username, password string) (types.Client, error)
-
-	// AuthenticateUser authenticates resource owner.
-	AuthenticateUser(username, password string) (valid bool)
-
-	// GrantInfo returns information about the authorization grant code.
-	GrantInfo(code string) (types.GrantCode, error)
-
-	// TokenInfo returns information about one specific token.
-	TokenInfo(token string) (types.Token, error)
-
-	// ResourceScopes returns the scopes associated with a given resource
-	ResourceScopes(url *url.URL) ([]types.Scope, error)
 }
 
 // AuthzHandler is intended to be used at the resource server side to protect and validate
