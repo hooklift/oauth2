@@ -15,7 +15,7 @@ in order to minimize risk of CSRF attacks.
 * Does refresh-token rotation upon access-token refresh.
 
 ## How to use
-This library was designed as a regular Go's HTTP handler. An example about how to use,
+This library was designed as a regular Go's HTTP handler. An example about how to use it,
 in general terms, is below:
 
 ```go
@@ -29,19 +29,17 @@ import (
 	"github.com/hooklift/oauth2/providers/test"
 )
 
-func ExampleExamples() {
+func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/hello", func(w http.ResponseWriter, req *http.Request) {
 		w.Write([]byte("Hellow World!"))
 	})
 
-	reqHandler := Handler(
-		mux,
-		// You must write your own provider by implementing the oauth2.Provider interface.
-		test.NewProvider(true),
-	)
+	provider := test.NewProvider(true)
+	authzHandler := oauth2.AuthzHandler(mux, provider)
+	oauth2Handlers := oauth2.Handler(authzHandler, provider)
 
-	log.Fatal(http.ListenAndServe(":3000", reqHandler))
+	log.Fatal(http.ListenAndServe(":3000", oauth2Handlers))
 }
 ```
 
