@@ -1,4 +1,6 @@
 # OAuth2 provider library for Go
+[![GoDoc](https://godoc.org/github.com/hooklift/oauth2?status.svg)](https://godoc.org/github.com/hooklift/oauth2)
+[![Build Status](https://travis-ci.org/hooklift/oauth2.svg?branch=master)](https://travis-ci.org/hooklift/oauth2)
 
 Implements OAuth2 HTTP dancing in a somewhat strict manner. For instance:
 
