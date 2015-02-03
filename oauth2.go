@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, version 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 // Package oauth2 implements the OAuth2 HTTP dancing in accordance with http://tools.ietf.org/html/rfc6749
 // and leaves the rest of the implementation to its users by requiring them
 // to implement oauth2.Provider interface.
