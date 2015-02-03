@@ -1,4 +1,4 @@
-// Package oauth2 implements the HTTP dancing in accordance with http://tools.ietf.org/html/rfc6749
+// Package oauth2 implements the OAuth2 HTTP dancing in accordance with http://tools.ietf.org/html/rfc6749
 // and leaves the rest of the implementation to its users by requiring them
 // to implement oauth2.Provider interface.
 package oauth2
