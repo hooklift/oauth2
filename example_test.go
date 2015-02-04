@@ -2,14 +2,13 @@
 // License, version 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-package examples_test
+package oauth2
 
 import (
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/hooklift/oauth2"
 	"github.com/hooklift/oauth2/providers/test"
 )
 
@@ -60,17 +59,17 @@ func ExampleExamples_basic() {
 
 	provider := test.NewProvider(true)
 	// Authorization handler to protect resources in this server
-	authzHandler := oauth2.AuthzHandler(mux, provider)
+	authzHandler := AuthzHandler(mux, provider)
 	// OAuth2 handler
-	oauth2Handlers := oauth2.Handler(authzHandler,
-		oauth2.SetProvider(provider),
-		oauth2.SetAuthzForm(authzForm),
-		oauth2.SetAuthzEndpoint("/oauth2/authorize"),
-		oauth2.SetTokenEndpoint("/oauth2/tokens"),
-		oauth2.SetSTSMaxAge(time.Duration(8760)*time.Hour), // 1yr
-		oauth2.SetAuthzExpiration(time.Duration(1)*time.Minute),
-		oauth2.SetTokenExpiration(time.Duration(10)*time.Minute),
-		oauth2.SetLoginURL("https://api.hooklift.io/accounts/login", "redirect_to"),
+	oauth2Handlers := Handler(authzHandler,
+		SetProvider(provider),
+		SetAuthzForm(authzForm),
+		SetAuthzEndpoint("/oauth2/authorize"),
+		SetTokenEndpoint("/oauth2/tokens"),
+		SetSTSMaxAge(time.Duration(8760)*time.Hour), // 1yr
+		SetAuthzExpiration(time.Duration(1)*time.Minute),
+		SetTokenExpiration(time.Duration(10)*time.Minute),
+		SetLoginURL("https://api.hooklift.io/accounts/login", "redirect_to"),
 	)
 
 	log.Fatal(http.ListenAndServe(":3000", oauth2Handlers))
