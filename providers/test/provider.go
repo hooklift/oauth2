@@ -4,14 +4,11 @@
 package test
 
 import (
-	"html/template"
-	"log"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/hooklift/oauth2/pkg"
 	"github.com/hooklift/oauth2/types"
 	"github.com/satori/go.uuid"
 )
@@ -47,14 +44,14 @@ func (p *Provider) ClientInfo(clientID string) (types.Client, error) {
 	return p.Client, nil
 }
 
-func (p *Provider) GenGrantCode(client types.Client, scopes []types.Scope) (types.GrantCode, error) {
+func (p *Provider) GenGrantCode(client types.Client, scopes []types.Scope, expiration time.Duration) (types.GrantCode, error) {
 	a := types.GrantCode{
 		Value:       uuid.NewV4().String(),
 		ClientID:    client.ID,
 		RedirectURL: client.RedirectURL,
 		Scope:       scopes,
 	}
-	a.ExpiresIn = p.AuthzExpiration()
+	a.ExpiresIn = expiration
 
 	p.GrantCodes[a.Value] = a
 	return a, nil
@@ -72,7 +69,7 @@ func (p *Provider) ScopesInfo(scopes string) ([]types.Scope, error) {
 	return scope, nil
 }
 
-func (p *Provider) GenToken(grantCode types.GrantCode, client types.Client, refreshToken bool) (types.Token, error) {
+func (p *Provider) GenToken(grantCode types.GrantCode, client types.Client, refreshToken bool, expiration time.Duration) (types.Token, error) {
 	t := types.Token{
 		Value:    uuid.NewV4().String(),
 		Type:     "bearer",
@@ -80,7 +77,7 @@ func (p *Provider) GenToken(grantCode types.GrantCode, client types.Client, refr
 		ClientID: client.ID,
 	}
 
-	t.ExpiresIn = strconv.FormatFloat(p.TokenExpiration().Seconds(), 'f', -1, 64)
+	t.ExpiresIn = strconv.FormatFloat(expiration.Seconds(), 'f', -1, 64)
 	if refreshToken {
 		t.RefreshToken = uuid.NewV4().String()
 		p.RefreshTokens[t.RefreshToken] = t
@@ -111,98 +108,7 @@ func (p *Provider) RefreshToken(refreshToken types.Token, scopes []types.Scope) 
 
 	return p.GenToken(grantCode, types.Client{
 		ID: refreshToken.ClientID,
-	}, true)
-}
-
-func (p *Provider) AuthzForm() *template.Template {
-	t := template.New("authzform")
-	t.Funcs(template.FuncMap{
-		"StringifyScopes": pkg.StringifyScopes,
-	})
-
-	form := `
-		<html>
-		<body>
-		{{if .Errors}}
-			<div id="errors">
-				<ul>
-				{{range .Errors}}
-					<li>{{.Code}}: {{.Desc}}</li>
-				{{end}}
-				</ul>
-			</div>
-		{{else}}
-			<div id="client">
-				<h2>{{.Client.Name}}</h2>
-				<h3>{{.Client.Desc}}</h3>
-				<a href="{{.Client.HomepageURL}}">
-					<figure><img src="{{.Client.ProfileImgURL}}"/></figure>
-				</a>
-			</div>
-			<div id="scopes">
-				<ul>
-					{{range .Scopes}}
-						<li>{{.ID}}: {{.Desc}}</li>
-					{{end}}
-				</ul>
-			</div>
-			<form>
-			 <input type="hidden" name="client_id" value="{{.Client.ID}}"/>
-			 <input type="hidden" name="response_type" value="{{.GrantType}}"/>
-			 <input type="hidden" name="redirect_uri" value="{{.Client.RedirectURL}}"/>
-			 <input type="hidden" name="scope" value="{{StringifyScopes .Scopes}}"/>
-			 <input type="hidden" name="state" value="{{.State}}"/>
-			</form>
-		{{end}}
-		</body>
-		</html>
-	`
-
-	tpl, err := t.Parse(form)
-	if err != nil {
-		log.Fatalf("Error parsing authorization form: %v", err)
-	}
-
-	return tpl
-
-}
-
-func (p *Provider) TokenEndpoint() string {
-	return "/oauth2/tokens"
-}
-
-func (p *Provider) AuthzEndpoint() string {
-	return "/oauth2/authzs"
-}
-
-func (p *Provider) TokenExpiration() time.Duration {
-	t, err := time.ParseDuration("10m")
-	if err != nil {
-		log.Fatalln(err)
-	}
-	return t
-}
-
-func (p *Provider) AuthzExpiration() time.Duration {
-	t, err := time.ParseDuration("1m")
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	return t
-}
-
-func (p *Provider) STSMaxAge() time.Duration {
-	t, err := time.ParseDuration("0s")
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	return t
-}
-
-func (p *Provider) LoginURL(refererURL string) string {
-	return "https://www.example.com/accounts/login?redirect_to=" + refererURL
+	}, true, time.Duration(10)*time.Minute)
 }
 
 func (p *Provider) IsUserAuthenticated() bool {

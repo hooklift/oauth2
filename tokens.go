@@ -17,13 +17,14 @@ import (
 
 // TokenHandlers is a map to functions where each function handles a particular HTTP
 // verb or method.
-var TokenHandlers map[string]func(http.ResponseWriter, *http.Request, Provider) = map[string]func(http.ResponseWriter, *http.Request, Provider){
+var TokenHandlers map[string]func(http.ResponseWriter, *http.Request, config) = map[string]func(http.ResponseWriter, *http.Request, config){
 	"POST":   IssueToken,
 	"DELETE": RevokeToken,
 }
 
 // IssueToken handles all requests going to tokens endpoint.
-func IssueToken(w http.ResponseWriter, req *http.Request, provider Provider) {
+func IssueToken(w http.ResponseWriter, req *http.Request, cfg config) {
+	provider := cfg.provider
 	username, password, ok := req.BasicAuth()
 	cinfo, err := provider.AuthenticateClient(username, password)
 	if !ok || err != nil {
@@ -37,13 +38,13 @@ func IssueToken(w http.ResponseWriter, req *http.Request, provider Provider) {
 	grantType := req.FormValue("grant_type")
 	switch grantType {
 	case "authorization_code":
-		authCodeGrant2(w, req, provider, cinfo)
+		authCodeGrant2(w, req, cfg, cinfo)
 	case "client_credentials":
-		clientCredentialsGrant(w, req, provider, cinfo)
+		clientCredentialsGrant(w, req, cfg, cinfo)
 	case "password":
-		resourceOwnerCredentialsGrant(w, req, provider, cinfo)
+		resourceOwnerCredentialsGrant(w, req, cfg, cinfo)
 	case "refresh_token":
-		refreshToken(w, req, provider, cinfo)
+		refreshToken(w, req, cfg, cinfo)
 	default:
 		render.JSON(w, render.Options{
 			Status: http.StatusBadRequest,
@@ -60,7 +61,8 @@ func IssueToken(w http.ResponseWriter, req *http.Request, provider Provider) {
 // Implementation notes:
 //  * Ignores client_id as we are always requiring the client to authenticate
 //  * Ignores redirect_uri as we force a static and pre-registered redirect URI for the client
-func authCodeGrant2(w http.ResponseWriter, req *http.Request, provider Provider, cinfo types.Client) {
+func authCodeGrant2(w http.ResponseWriter, req *http.Request, cfg config, cinfo types.Client) {
+	provider := cfg.provider
 	code := req.FormValue("code")
 	if code == "" {
 		err := ErrUnauthorizedClient
@@ -119,7 +121,7 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, provider Provider,
 		return
 	}
 
-	token, err := provider.GenToken(grantCode, cinfo, true)
+	token, err := provider.GenToken(grantCode, cinfo, true, cfg.tokenExpiration)
 	if err != nil {
 		render.JSON(w, render.Options{
 			Status: http.StatusInternalServerError,
@@ -135,7 +137,8 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, provider Provider,
 }
 
 // Implements http://tools.ietf.org/html/rfc6749#section-4.3
-func resourceOwnerCredentialsGrant(w http.ResponseWriter, req *http.Request, provider Provider, cinfo types.Client) {
+func resourceOwnerCredentialsGrant(w http.ResponseWriter, req *http.Request, cfg config, cinfo types.Client) {
+	provider := cfg.provider
 	if ok := provider.AuthenticateUser(req.FormValue("username"), req.FormValue("password")); !ok {
 		render.JSON(w, render.Options{
 			Status: http.StatusBadRequest,
@@ -161,7 +164,7 @@ func resourceOwnerCredentialsGrant(w http.ResponseWriter, req *http.Request, pro
 	noAuthzGrant := types.GrantCode{
 		Scope: scopes,
 	}
-	token, err := provider.GenToken(noAuthzGrant, cinfo, true)
+	token, err := provider.GenToken(noAuthzGrant, cinfo, true, cfg.tokenExpiration)
 	if err != nil {
 		render.JSON(w, render.Options{
 			Status: http.StatusInternalServerError,
@@ -177,7 +180,8 @@ func resourceOwnerCredentialsGrant(w http.ResponseWriter, req *http.Request, pro
 }
 
 // Implements http://tools.ietf.org/html/rfc6749#section-4.4
-func clientCredentialsGrant(w http.ResponseWriter, req *http.Request, provider Provider, cinfo types.Client) {
+func clientCredentialsGrant(w http.ResponseWriter, req *http.Request, cfg config, cinfo types.Client) {
+	provider := cfg.provider
 	scope := req.FormValue("scope")
 	var scopes []types.Scope
 	if scope != "" {
@@ -195,7 +199,7 @@ func clientCredentialsGrant(w http.ResponseWriter, req *http.Request, provider P
 	noAuthzGrant := types.GrantCode{
 		Scope: scopes,
 	}
-	token, err := provider.GenToken(noAuthzGrant, cinfo, false)
+	token, err := provider.GenToken(noAuthzGrant, cinfo, false, cfg.tokenExpiration)
 	if err != nil {
 		render.JSON(w, render.Options{
 			Status: http.StatusInternalServerError,
@@ -211,7 +215,8 @@ func clientCredentialsGrant(w http.ResponseWriter, req *http.Request, provider P
 }
 
 // Implements http://tools.ietf.org/html/rfc6749#section-6
-func refreshToken(w http.ResponseWriter, req *http.Request, provider Provider, cinfo types.Client) {
+func refreshToken(w http.ResponseWriter, req *http.Request, cfg config, cinfo types.Client) {
+	provider := cfg.provider
 	code := req.FormValue("refresh_token")
 	token, err := provider.TokenInfo(code)
 	if err != nil {
@@ -282,7 +287,8 @@ func refreshToken(w http.ResponseWriter, req *http.Request, provider Provider, c
 // It does not take into account token_type_hint as the common use case is to
 // have access and refresh tokens uniquely identified throughout the system. That said,
 // unsupported_token_type error responses are not produced by this implementation either.
-func RevokeToken(w http.ResponseWriter, req *http.Request, provider Provider) {
+func RevokeToken(w http.ResponseWriter, req *http.Request, cfg config) {
+	provider := cfg.provider
 	username, password, ok := req.BasicAuth()
 	cinfo, err := provider.AuthenticateClient(username, password)
 	if !ok || err != nil {

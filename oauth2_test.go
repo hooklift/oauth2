@@ -17,13 +17,14 @@ import (
 
 // getAccessTokenTest is a helper function to generate a valid grant and an access token.
 func getAccessTokenTest(t *testing.T) (Provider, types.Token) {
-	provider, authzCode := getTestAuthzCode(t)
+	cfg, authzCode := getTestAuthzCode(t)
+	provider := cfg.provider
 
 	req := AuthzGrantTokenRequestTest(t, "authorization_code", authzCode)
 	req.SetBasicAuth("testclient", "testclient")
 
 	w := httptest.NewRecorder()
-	IssueToken(w, req, provider)
+	IssueToken(w, req, cfg)
 
 	token := types.Token{}
 	err := json.Unmarshal(w.Body.Bytes(), &token)
