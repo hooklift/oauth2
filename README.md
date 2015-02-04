@@ -28,7 +28,7 @@ It is not a goal of this library to support:
 
 * Authentication
 * Session management
-* Backend storage, instead we defined an [interface](https://github.com/hooklift/oauth2/blob/master/oauth2.go#L23-L111) for users to implement and plug any backend storage of their preference.
+* Backend storage, instead we defined an [interface](https://github.com/hooklift/oauth2/blob/master/oauth2.go#L23-L75) for users to implement and plug any backend storage of their preference.
 
 ## How to use
 This library was designed as a regular Go's HTTP handler. A brief example about how to use it:
@@ -113,7 +113,7 @@ func main() {
 }
 ```
 
-Lastly, don't forget to implement the [Provider](https://github.com/hooklift/oauth2/blob/master/oauth2.go#L23-L111) interface.
+Lastly, don't forget to implement the [Provider](https://github.com/hooklift/oauth2/blob/master/oauth2.go#L23-L75) interface.
 
 ## Implemented specs
 * The OAuth 2.0 Authorization Framework: http://tools.ietf.org/html/rfc6749
