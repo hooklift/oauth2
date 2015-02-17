@@ -22,12 +22,12 @@ type Client struct {
 	Name string
 	// Client's description.
 	Description string
-	// Profile image URL used when showing authorization form to resource owner
-	ProfileImgURL *url.URL
+	// Logo image URL used when showing authorization form to resource owner.
+	LogoURL *url.URL `db:"logo_url" json:"logo_url"`
 	// Client's homepage URL to allow resource owners to verify client's authenticity by themselves.
-	HomepageURL *url.URL
+	HomepageURL *url.URL `db:"homepage_url" json:"homepage_url"`
 	// Redirect URL registered for this client.
-	RedirectURL *url.URL
+	RedirectURL *url.URL `db:"redirect_url" json:"redirect_url"`
 }
 
 // Scope defines a type for manipulating OAuth2 scopes.
@@ -43,35 +43,35 @@ type GrantCode struct {
 	// Authorization code value.
 	Value string
 	// Expiration time for this authorization code.
-	ExpiresIn time.Duration
+	ExpiresIn time.Duration `db:"expires_in" json:"expires_in"`
 	// Client's identifier to which this code was emitted to.
-	ClientID string
+	ClientID string `db:"client_id" json:"client_id"`
 	// Redirect URL associated with the authorization code.
-	RedirectURL *url.URL
+	RedirectURL *url.URL `db:"redirect_url" json:"redirect_url"`
 	// List of authorization scopes for which this authorization code was generated.
-	Scope []Scope
+	Scopes []Scope
 	// Whether or not this code was revoked.
-	IsRevoked bool
+	IsRevoked bool `db:"is_revoked" json:"is_revoked"`
 	// Whether or not this code was expired.
-	IsExpired bool
+	IsExpired bool `db:"is_expired" json:"is_expired"`
 	// Whether or not this code was already used.
-	IsUsed bool
+	IsUsed bool `db:"is_used" json:"is_used"`
 }
 
 // Token represents an access token.
 type Token struct {
 	// client associated to this token
-	ClientID string `json:"-"`
+	ClientID string `db:"client_id" json:"-"`
 	// The actual token value
 	Value string `json:"access_token"`
 	// Whether it is a bearer, MAC, SAML, etc
 	Type string `json:"token_type"`
 	// Expiration time for this token
-	ExpiresIn string `json:"expires_in"`
+	ExpiresIn string `db:"expires_in" json:"expires_in"`
 	// Refresh token optionally emitted along with access token
-	RefreshToken string `json:"refresh_token,omitempty"`
-	// Authorization scoped allowed for this token
-	Scope []Scope `json:"-"`
+	RefreshToken string `db:"refresh_token" json:"refresh_token,omitempty"`
+	// Authorization scope allowed for this token
+	Scopes []Scope `json:"-"`
 	// Whether or not this token was revoked.
 	IsRevoked bool `json:"-"`
 	// Whether or not this token was expired.

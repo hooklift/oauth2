@@ -146,7 +146,7 @@ func authCodeGrant1(w http.ResponseWriter, req *http.Request, cfg config, params
 		return nil
 	}
 
-	if &cinfo == nil {
+	if cinfo == (types.Client{}) {
 		render.HTML(w, render.Options{
 			Status: http.StatusOK,
 			Data: AuthzData{
@@ -263,7 +263,7 @@ func implicitGrant(w http.ResponseWriter, req *http.Request, cfg config, authzDa
 	u := authzData.Client.RedirectURL
 
 	noAuthzGrant := types.GrantCode{
-		Scope: authzData.Scopes,
+		Scopes: authzData.Scopes,
 	}
 
 	token, err := provider.GenToken(noAuthzGrant, authzData.Client, false, cfg.tokenExpiration)
@@ -277,7 +277,7 @@ func implicitGrant(w http.ResponseWriter, req *http.Request, cfg config, authzDa
 		"access_token": {token.Value},
 		"token_type":   {token.Type},
 		"expires_in":   {token.ExpiresIn},
-		"scope":        {pkg.StringifyScopes(token.Scope)},
+		"scope":        {pkg.StringifyScopes(token.Scopes)},
 		"state":        {authzData.State},
 	}
 

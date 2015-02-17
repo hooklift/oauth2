@@ -35,7 +35,7 @@ func setupTest() config {
 				<h2>{{.Client.Name}}</h2>
 				<h3>{{.Client.Description}}</h3>
 				<a href="{{.Client.HomepageURL}}">
-					<figure><img src="{{.Client.ProfileImgURL}}"/></figure>
+					<figure><img src="{{.Client.LogoURL}}"/></figure>
 				</a>
 			</div>
 			<div id="scopes">

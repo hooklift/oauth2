@@ -162,7 +162,7 @@ func resourceOwnerCredentialsGrant(w http.ResponseWriter, req *http.Request, cfg
 	}
 
 	noAuthzGrant := types.GrantCode{
-		Scope: scopes,
+		Scopes: scopes,
 	}
 	token, err := provider.GenToken(noAuthzGrant, cinfo, true, cfg.tokenExpiration)
 	if err != nil {
@@ -197,7 +197,7 @@ func clientCredentialsGrant(w http.ResponseWriter, req *http.Request, cfg config
 	}
 
 	noAuthzGrant := types.GrantCode{
-		Scope: scopes,
+		Scopes: scopes,
 	}
 	token, err := provider.GenToken(noAuthzGrant, cinfo, false, cfg.tokenExpiration)
 	if err != nil {
@@ -243,7 +243,7 @@ func refreshToken(w http.ResponseWriter, req *http.Request, cfg config, cinfo ty
 		// The requested scope MUST NOT include any scope not originally granted
 		// by the resource owner, and if omitted is treated as equal to the scope
 		// originally granted by the resource owner.
-		tscopes := pkg.StringifyScopes(token.Scope)
+		tscopes := pkg.StringifyScopes(token.Scopes)
 		for _, s := range scopes {
 			// TODO(c4milo): make more robust
 			if !strings.Contains(tscopes, s.ID) {
@@ -257,7 +257,7 @@ func refreshToken(w http.ResponseWriter, req *http.Request, cfg config, cinfo ty
 	}
 
 	if len(scopes) == 0 {
-		scopes = token.Scope
+		scopes = token.Scopes
 	}
 
 	if token.ClientID != cinfo.ID {

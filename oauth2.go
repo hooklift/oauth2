@@ -257,7 +257,7 @@ func AuthzHandler(next http.Handler, provider Provider) http.Handler {
 		resourceScopes := pkg.StringifyScopes(scopes)
 		// log.Printf("[DEBUG] resource: %s", resourceScopes)
 		// log.Printf("[DEBUG] requested: %s", pkg.StringifyScopes(tokenInfo.Scope))
-		for _, scope := range tokenInfo.Scope {
+		for _, scope := range tokenInfo.Scopes {
 			if !strings.Contains(resourceScopes, scope.ID) {
 				render.Unauthorized(w, render.Options{
 					Status: http.StatusForbidden,

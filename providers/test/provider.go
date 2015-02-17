@@ -49,7 +49,7 @@ func (p *Provider) GenGrantCode(client types.Client, scopes []types.Scope, expir
 		Value:       uuid.NewV4().String(),
 		ClientID:    client.ID,
 		RedirectURL: client.RedirectURL,
-		Scope:       scopes,
+		Scopes:      scopes,
 	}
 	a.ExpiresIn = expiration
 
@@ -73,7 +73,7 @@ func (p *Provider) GenToken(grantCode types.GrantCode, client types.Client, refr
 	t := types.Token{
 		Value:    uuid.NewV4().String(),
 		Type:     "bearer",
-		Scope:    grantCode.Scope,
+		Scopes:   grantCode.Scopes,
 		ClientID: client.ID,
 	}
 
@@ -103,7 +103,7 @@ func (p *Provider) RefreshToken(refreshToken types.Token, scopes []types.Scope) 
 	delete(p.RefreshTokens, refreshToken.Value)
 
 	grantCode := types.GrantCode{
-		Scope: scopes,
+		Scopes: scopes,
 	}
 
 	return p.GenToken(grantCode, types.Client{
