@@ -219,7 +219,7 @@ func TestAuthzCodeOwnership(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &authzErr)
 	ok(t, err)
 	equals(t, "invalid_grant", authzErr.Code)
-	equals(t, "Grant code was generated for a different redirect URI.", authzErr.Desc)
+	equals(t, "Grant code was generated for a different redirect URI.", authzErr.Description)
 }
 
 // TestRevokeToken tests happy path for revoking refresh and access tokens.

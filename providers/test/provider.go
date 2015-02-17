@@ -62,8 +62,8 @@ func (p *Provider) ScopesInfo(scopes string) ([]types.Scope, error) {
 	scope := make([]types.Scope, 0)
 	for _, v := range s {
 		scope = append(scope, types.Scope{
-			ID:   v,
-			Desc: "test scope",
+			ID:          v,
+			Description: "test scope",
 		})
 	}
 	return scope, nil

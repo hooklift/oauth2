@@ -21,7 +21,7 @@ type Client struct {
 	// Client's name.
 	Name string
 	// Client's description.
-	Desc string
+	Description string
 	// Profile image URL used when showing authorization form to resource owner
 	ProfileImgURL *url.URL
 	// Client's homepage URL to allow resource owners to verify client's authenticity by themselves.
@@ -35,7 +35,7 @@ type Scope struct {
 	// Scope's identifier. Example: read
 	ID string
 	// Scope's description
-	Desc string
+	Description string
 }
 
 // GrantCode represents an authorization grant code.
@@ -79,16 +79,16 @@ type Token struct {
 }
 
 type AuthzError struct {
-	Code  string `json:"error"`
-	Desc  string `json:"error_description"`
-	URI   string `json:"error_uri,omitempty"`
-	State string `json:"state,omitempty"`
+	Code        string `json:"error"`
+	Description string `json:"error_description"`
+	URI         string `json:"error_uri,omitempty"`
+	State       string `json:"state,omitempty"`
 }
 
 func (a *AuthzError) Error() string {
 	str := fmt.Sprintf(`error="%s"`, a.Code)
-	if a.Desc != "" {
-		str += fmt.Sprintf(`,error_description="%s"`, a.Desc)
+	if a.Description != "" {
+		str += fmt.Sprintf(`,error_description="%s"`, a.Description)
 	}
 
 	if a.URI != "" {

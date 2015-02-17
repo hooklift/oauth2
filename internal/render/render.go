@@ -97,7 +97,7 @@ func HTML(w http.ResponseWriter, opts Options) error {
 
 	buf := new(bytes.Buffer)
 	if err := opts.Template.Execute(buf, opts.Data); err != nil {
-		log.Print("[ERROR] %v", err)
+		log.Printf("[ERROR] %v", err)
 	}
 
 	headers.Set("Content-Length", strconv.Itoa(buf.Len()))

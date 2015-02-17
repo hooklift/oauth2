@@ -66,7 +66,7 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, cfg config, cinfo 
 	code := req.FormValue("code")
 	if code == "" {
 		err := ErrUnauthorizedClient
-		err.Desc = "Authorization code can't be empty."
+		err.Description = "Authorization code can't be empty."
 		render.JSON(w, render.Options{
 			Status: http.StatusBadRequest,
 			Data:   ErrUnauthorizedClient,
@@ -77,7 +77,7 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, cfg config, cinfo 
 	grantCode, err := provider.GrantInfo(code)
 	if err != nil {
 		e := ErrInvalidGrant
-		e.Desc = err.Error()
+		e.Description = err.Error()
 
 		render.JSON(w, render.Options{
 			Status: http.StatusBadRequest,
@@ -88,7 +88,7 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, cfg config, cinfo 
 
 	if grantCode.IsRevoked || grantCode.IsExpired || grantCode.IsUsed {
 		e := ErrInvalidGrant
-		e.Desc = "Grant code was revoked, expired or already used."
+		e.Description = "Grant code was revoked, expired or already used."
 
 		render.JSON(w, render.Options{
 			Status: http.StatusBadRequest,
@@ -99,7 +99,7 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, cfg config, cinfo 
 
 	if cinfo.RedirectURL.String() != grantCode.RedirectURL.String() {
 		e := ErrInvalidGrant
-		e.Desc = "Grant code was generated for a different redirect URI."
+		e.Description = "Grant code was generated for a different redirect URI."
 
 		render.JSON(w, render.Options{
 			Status: http.StatusBadRequest,
@@ -112,7 +112,7 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, cfg config, cinfo 
 	// checking anyways.
 	if grantCode.ClientID != cinfo.ID {
 		e := ErrInvalidGrant
-		e.Desc = "Grant code was generated for a different client ID."
+		e.Description = "Grant code was generated for a different client ID."
 
 		render.JSON(w, render.Options{
 			Status: http.StatusBadRequest,

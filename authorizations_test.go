@@ -26,14 +26,14 @@ func setupTest() config {
 			<div id="errors">
 				<ul>
 				{{range .Errors}}
-					<li>{{.Code}}: {{.Desc}}</li>
+					<li>{{.Code}}: {{.Description}}</li>
 				{{end}}
 				</ul>
 			</div>
 		{{else}}
 			<div id="client">
 				<h2>{{.Client.Name}}</h2>
-				<h3>{{.Client.Desc}}</h3>
+				<h3>{{.Client.Description}}</h3>
 				<a href="{{.Client.HomepageURL}}">
 					<figure><img src="{{.Client.ProfileImgURL}}"/></figure>
 				</a>
@@ -41,7 +41,7 @@ func setupTest() config {
 			<div id="scopes">
 				<ul>
 					{{range .Scopes}}
-						<li>{{.ID}}: {{.Desc}}</li>
+						<li>{{.ID}}: {{.Description}}</li>
 					{{end}}
 				</ul>
 			</div>
@@ -287,7 +287,7 @@ func TestReplayAttackProtection(t *testing.T) {
 	err = json.Unmarshal(w2.Body.Bytes(), &authzErr)
 	ok(t, err)
 	equals(t, "invalid_grant", authzErr.Code)
-	equals(t, "Grant code was revoked, expired or already used.", authzErr.Desc)
+	equals(t, "Grant code was revoked, expired or already used.", authzErr.Description)
 
 }
 
