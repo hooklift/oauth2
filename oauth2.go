@@ -40,7 +40,7 @@ type Provider interface {
 
 	// ScopesInfo parses the list of scopes requested by the client and
 	// returns its descriptions for the resource owner to fully understand
-	// what he is authorizing the client to access to. An error is returned
+	// what she is authorizing the client to access to. An error is returned
 	// if the scopes list does not comply with http://tools.ietf.org/html/rfc6749#section-3.3
 	//
 	// Unrecognized or non-existent scopes are ignored.
