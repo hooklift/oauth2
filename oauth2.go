@@ -235,7 +235,7 @@ func AuthzHandler(next http.Handler, provider Provider) http.Handler {
 			return
 		}
 
-		if tokenInfo.IsExpired || tokenInfo.IsRevoked {
+		if tokenInfo.Status == types.TokenExpired || tokenInfo.Status == types.TokenRevoked {
 			render.Unauthorized(w, render.Options{
 				Status: http.StatusUnauthorized,
 				Data:   ErrInvalidToken,

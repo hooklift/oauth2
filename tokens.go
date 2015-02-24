@@ -86,7 +86,9 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, cfg config, cinfo 
 		return
 	}
 
-	if grantCode.IsRevoked || grantCode.IsExpired || grantCode.IsUsed {
+	if grantCode.Status == types.GrantRevoked ||
+		grantCode.Status == types.GrantExpired ||
+		grantCode.Status == types.GrantUsed {
 		e := ErrInvalidGrant
 		e.Description = "Grant code was revoked, expired or already used."
 

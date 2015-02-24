@@ -84,7 +84,7 @@ func (p *Provider) GenToken(grantCode types.GrantCode, client types.Client, refr
 	}
 
 	if v, ok := p.GrantCodes[grantCode.Value]; ok {
-		v.IsUsed = true
+		v.Status = types.GrantUsed
 		p.GrantCodes[grantCode.Value] = v
 	}
 

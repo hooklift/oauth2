@@ -38,6 +38,15 @@ type Scope struct {
 	Description string
 }
 
+// GrantStatus defines a type for possible statuses of an authorization grant.
+type GrantStatus string
+
+const (
+	GrantRevoked GrantStatus = "revoked"
+	GrantExpired             = "expired"
+	GrantUsed                = "used"
+)
+
 // GrantCode represents an authorization grant code.
 type GrantCode struct {
 	// Authorization code value.
@@ -50,13 +59,17 @@ type GrantCode struct {
 	RedirectURL *url.URL `db:"redirect_url" json:"redirect_url"`
 	// List of authorization scopes for which this authorization code was generated.
 	Scopes []Scope
-	// Whether or not this code was revoked.
-	IsRevoked bool `db:"is_revoked" json:"is_revoked"`
-	// Whether or not this code was expired.
-	IsExpired bool `db:"is_expired" json:"is_expired"`
-	// Whether or not this code was already used.
-	IsUsed bool `db:"is_used" json:"is_used"`
+	// The status of this authorization grant code
+	Status GrantStatus `json:"-"`
 }
+
+// TokenStatus defines a type for possible statuses of an authorization grant.
+type TokenStatus string
+
+const (
+	TokenExpired TokenStatus = "expired"
+	TokenRevoked             = "revoked"
+)
 
 // Token represents an access token.
 type Token struct {
@@ -72,10 +85,8 @@ type Token struct {
 	RefreshToken string `db:"refresh_token" json:"refresh_token,omitempty"`
 	// Authorization scope allowed for this token
 	Scopes []Scope `json:"-"`
-	// Whether or not this token was revoked.
-	IsRevoked bool `json:"-"`
-	// Whether or not this token was expired.
-	IsExpired bool `json:"-"`
+	// The status of this token
+	Status TokenStatus `json:"-"`
 }
 
 type AuthzError struct {
