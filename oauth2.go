@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/hooklift/oauth2/internal/render"
-	"github.com/hooklift/oauth2/pkg"
 	"github.com/hooklift/oauth2/types"
 )
 
@@ -44,10 +43,10 @@ type Provider interface {
 	// if the scopes list does not comply with http://tools.ietf.org/html/rfc6749#section-3.3
 	//
 	// Unrecognized or non-existent scopes are ignored.
-	ScopesInfo(scopes string) ([]types.Scope, error)
+	ScopesInfo(scopes string) (types.Scopes, error)
 
 	// ResourceScopes returns the scopes associated with a given resource
-	ResourceScopes(url *url.URL) ([]types.Scope, error)
+	ResourceScopes(url *url.URL) (types.Scopes, error)
 
 	// GenGrantCode issues and stores an authorization grant code, in a persistent storage.
 	// The authorization code MUST expire shortly after it is issued to mitigate
@@ -57,7 +56,7 @@ type Provider interface {
 	// previously issued based on that authorization code.  The authorization
 	// code is bound to the client identifier and redirection URI.
 	// -- http://tools.ietf.org/html/rfc6749#section-4.1.2
-	GenGrantCode(client types.Client, scopes []types.Scope, expiration time.Duration) (code types.GrantCode, err error)
+	GenGrantCode(client types.Client, scopes types.Scopes, expiration time.Duration) (code types.GrantCode, err error)
 
 	// GenToken generates and stores access and refresh tokens with the given
 	// client information and authorization scope.
@@ -67,7 +66,7 @@ type Provider interface {
 	RevokeToken(token string) error
 
 	// RefreshToken refreshes an access token.
-	RefreshToken(refreshToken types.Token, scopes []types.Scope) (accessToken types.Token, err error)
+	RefreshToken(refreshToken types.Token, scopes types.Scopes) (accessToken types.Token, err error)
 
 	// IsUserAuthenticated checks whether or not the resource owner has a valid session
 	// with the system. If not, it redirects the user to the login URL.
@@ -137,13 +136,8 @@ func SetSTSMaxAge(maxAge time.Duration) option {
 
 // SetAuthzForm sets authorization form to show to the resource owner.
 func SetAuthzForm(form string) option {
-	var funcMap template.FuncMap = template.FuncMap{
-		"StringifyScopes": pkg.StringifyScopes,
-	}
 	return func(c *config) {
 		t := template.New("authzform")
-		t.Funcs(funcMap)
-
 		tpl, err := t.Parse(form)
 		if err != nil {
 			log.Fatalf("Error parsing authorization form: %v", err)
@@ -254,9 +248,7 @@ func AuthzHandler(next http.Handler, provider Provider) http.Handler {
 		}
 
 		// Check that token's scope covers the requested resource
-		resourceScopes := pkg.StringifyScopes(scopes)
-		// log.Printf("[DEBUG] resource: %s", resourceScopes)
-		// log.Printf("[DEBUG] requested: %s", pkg.StringifyScopes(tokenInfo.Scope))
+		resourceScopes := scopes.Encode()
 		for _, scope := range tokenInfo.Scopes {
 			if !strings.Contains(resourceScopes, scope.ID) {
 				render.Unauthorized(w, render.Options{

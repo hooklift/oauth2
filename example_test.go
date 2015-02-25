@@ -44,7 +44,7 @@ func ExampleExamples_basic() {
 			 <input type="hidden" name="client_id" value="{{.Client.ID}}"/>
 			 <input type="hidden" name="response_type" value="{{.GrantType}}"/>
 			 <input type="hidden" name="redirect_uri" value="{{.Client.RedirectURL}}"/>
-			 <input type="hidden" name="scope" value="{{StringifyScopes .Scopes}}"/>
+			 <input type="hidden" name="scope" value="{{.Scopes.Encode}}"/>
 			 <input type="hidden" name="state" value="{{.State}}"/>
 			</form>
 		{{end}}

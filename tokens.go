@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/hooklift/oauth2/internal/render"
-	"github.com/hooklift/oauth2/pkg"
 	"github.com/hooklift/oauth2/types"
 )
 
@@ -150,7 +149,7 @@ func resourceOwnerCredentialsGrant(w http.ResponseWriter, req *http.Request, cfg
 	}
 
 	scope := req.FormValue("scope")
-	var scopes []types.Scope
+	var scopes types.Scopes
 	if scope != "" {
 		var err error
 		scopes, err = provider.ScopesInfo(scope)
@@ -185,7 +184,7 @@ func resourceOwnerCredentialsGrant(w http.ResponseWriter, req *http.Request, cfg
 func clientCredentialsGrant(w http.ResponseWriter, req *http.Request, cfg config, cinfo types.Client) {
 	provider := cfg.provider
 	scope := req.FormValue("scope")
-	var scopes []types.Scope
+	var scopes types.Scopes
 	if scope != "" {
 		var err error
 		scopes, err = provider.ScopesInfo(scope)
@@ -230,7 +229,7 @@ func refreshToken(w http.ResponseWriter, req *http.Request, cfg config, cinfo ty
 	}
 
 	scope := req.FormValue("scope")
-	var scopes []types.Scope
+	var scopes types.Scopes
 	if scope != "" {
 		var err error
 		scopes, err = provider.ScopesInfo(scope)
@@ -245,7 +244,7 @@ func refreshToken(w http.ResponseWriter, req *http.Request, cfg config, cinfo ty
 		// The requested scope MUST NOT include any scope not originally granted
 		// by the resource owner, and if omitted is treated as equal to the scope
 		// originally granted by the resource owner.
-		tscopes := pkg.StringifyScopes(token.Scopes)
+		tscopes := token.Scopes.Encode()
 		for _, s := range scopes {
 			// TODO(c4milo): make more robust
 			if !strings.Contains(tscopes, s.ID) {

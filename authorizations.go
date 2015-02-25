@@ -9,7 +9,6 @@ import (
 	"net/url"
 
 	"github.com/hooklift/oauth2/internal/render"
-	"github.com/hooklift/oauth2/pkg"
 	"github.com/hooklift/oauth2/types"
 )
 
@@ -26,7 +25,7 @@ type AuthzData struct {
 	// Client information.
 	Client types.Client
 	// Requested scope access from 3rd-party client
-	Scopes []types.Scope
+	Scopes types.Scopes
 	// List of errors to display to the resource owner.
 	Errors []types.AuthzError
 	// Grant type is either "code" or "token" for implicit authorizations.
@@ -277,7 +276,7 @@ func implicitGrant(w http.ResponseWriter, req *http.Request, cfg config, authzDa
 		"access_token": {token.Value},
 		"token_type":   {token.Type},
 		"expires_in":   {token.ExpiresIn},
-		"scope":        {pkg.StringifyScopes(token.Scopes)},
+		"scope":        {token.Scopes.Encode()},
 		"state":        {authzData.State},
 	}
 

@@ -44,7 +44,7 @@ func (p *Provider) ClientInfo(clientID string) (types.Client, error) {
 	return p.Client, nil
 }
 
-func (p *Provider) GenGrantCode(client types.Client, scopes []types.Scope, expiration time.Duration) (types.GrantCode, error) {
+func (p *Provider) GenGrantCode(client types.Client, scopes types.Scopes, expiration time.Duration) (types.GrantCode, error) {
 	a := types.GrantCode{
 		Value:       uuid.NewV4().String(),
 		ClientID:    client.ID,
@@ -57,9 +57,9 @@ func (p *Provider) GenGrantCode(client types.Client, scopes []types.Scope, expir
 	return a, nil
 }
 
-func (p *Provider) ScopesInfo(scopes string) ([]types.Scope, error) {
+func (p *Provider) ScopesInfo(scopes string) (types.Scopes, error) {
 	s := strings.Split(scopes, " ")
-	scope := make([]types.Scope, 0)
+	scope := make(types.Scopes, 0)
 	for _, v := range s {
 		scope = append(scope, types.Scope{
 			ID:          v,
@@ -98,7 +98,7 @@ func (p *Provider) RevokeToken(token string) error {
 	return nil
 }
 
-func (p *Provider) RefreshToken(refreshToken types.Token, scopes []types.Scope) (types.Token, error) {
+func (p *Provider) RefreshToken(refreshToken types.Token, scopes types.Scopes) (types.Token, error) {
 	// Revokes existing refresh token
 	delete(p.RefreshTokens, refreshToken.Value)
 
@@ -143,8 +143,8 @@ func (p *Provider) AuthenticateUser(username, password string) bool {
 	return true
 }
 
-func (p *Provider) ResourceScopes(url *url.URL) ([]types.Scope, error) {
-	return []types.Scope{
+func (p *Provider) ResourceScopes(url *url.URL) (types.Scopes, error) {
+	return types.Scopes{
 		types.Scope{ID: "identity"},
 		types.Scope{ID: "read"},
 		types.Scope{ID: "write"},

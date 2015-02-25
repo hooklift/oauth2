@@ -38,6 +38,21 @@ type Scope struct {
 	Description string
 }
 
+// Defines a type commonly used for manipulating a group of Scopes.
+type Scopes []Scope
+
+func (s Scopes) Encode() string {
+	if len(s) <= 0 {
+		return ""
+	}
+
+	var scope string
+	for _, v := range s {
+		scope += v.ID + " "
+	}
+	return scope[:len(scope)-1] // removes last space
+}
+
 // GrantStatus defines a type for possible statuses of an authorization grant.
 type GrantStatus string
 
@@ -58,7 +73,7 @@ type GrantCode struct {
 	// Redirect URL associated with the authorization code.
 	RedirectURL *url.URL `db:"redirect_url" json:"redirect_url"`
 	// List of authorization scopes for which this authorization code was generated.
-	Scopes []Scope
+	Scopes Scopes
 	// The status of this authorization grant code
 	Status GrantStatus `json:"-"`
 }
@@ -84,7 +99,7 @@ type Token struct {
 	// Refresh token optionally emitted along with access token
 	RefreshToken string `db:"refresh_token" json:"refresh_token,omitempty"`
 	// Authorization scope allowed for this token
-	Scopes []Scope `json:"-"`
+	Scopes Scopes `json:"-"`
 	// The status of this token
 	Status TokenStatus `json:"-"`
 }

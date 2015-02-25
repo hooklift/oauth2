@@ -160,9 +160,9 @@ func TestRefreshToken(t *testing.T) {
 	cfg.provider = provider
 
 	noAuthzGrant := types.GrantCode{
-		Scopes: []types.Scope{types.Scope{
-			ID: "identity",
-		}},
+		Scopes: types.Scopes{
+			types.Scope{ID: "identity"},
+		},
 	}
 	accessToken, err := provider.GenToken(noAuthzGrant, types.Client{
 		ID: "test_client_id",
