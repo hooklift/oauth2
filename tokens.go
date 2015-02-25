@@ -73,7 +73,7 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, cfg config, cinfo 
 		return
 	}
 
-	grantCode, err := provider.GrantInfo(code)
+	grant, err := provider.GrantInfo(code)
 	if err != nil {
 		e := ErrInvalidGrant
 		e.Description = err.Error()
@@ -85,9 +85,9 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, cfg config, cinfo 
 		return
 	}
 
-	if grantCode.Status == types.GrantRevoked ||
-		grantCode.Status == types.GrantExpired ||
-		grantCode.Status == types.GrantUsed {
+	if grant.Status == types.GrantRevoked ||
+		grant.Status == types.GrantExpired ||
+		grant.Status == types.GrantUsed {
 		e := ErrInvalidGrant
 		e.Description = "Grant code was revoked, expired or already used."
 
@@ -98,7 +98,7 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, cfg config, cinfo 
 		return
 	}
 
-	if cinfo.RedirectURL.String() != grantCode.RedirectURL.String() {
+	if cinfo.RedirectURL.String() != grant.RedirectURL.String() {
 		e := ErrInvalidGrant
 		e.Description = "Grant code was generated for a different redirect URI."
 
@@ -111,7 +111,7 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, cfg config, cinfo 
 
 	// This should not happen if the provider is doing its work properly but we are
 	// checking anyways.
-	if grantCode.ClientID != cinfo.ID {
+	if grant.ClientID != cinfo.ID {
 		e := ErrInvalidGrant
 		e.Description = "Grant code was generated for a different client ID."
 
@@ -122,7 +122,7 @@ func authCodeGrant2(w http.ResponseWriter, req *http.Request, cfg config, cinfo 
 		return
 	}
 
-	token, err := provider.GenToken(grantCode, cinfo, true, cfg.tokenExpiration)
+	token, err := provider.GenToken(grant, cinfo, true, cfg.tokenExpiration)
 	if err != nil {
 		render.JSON(w, render.Options{
 			Status: http.StatusInternalServerError,
@@ -162,7 +162,7 @@ func resourceOwnerCredentialsGrant(w http.ResponseWriter, req *http.Request, cfg
 		}
 	}
 
-	noAuthzGrant := types.GrantCode{
+	noAuthzGrant := types.Grant{
 		Scopes: scopes,
 	}
 	token, err := provider.GenToken(noAuthzGrant, cinfo, true, cfg.tokenExpiration)
@@ -197,7 +197,7 @@ func clientCredentialsGrant(w http.ResponseWriter, req *http.Request, cfg config
 		}
 	}
 
-	noAuthzGrant := types.GrantCode{
+	noAuthzGrant := types.Grant{
 		Scopes: scopes,
 	}
 	token, err := provider.GenToken(noAuthzGrant, cinfo, false, cfg.tokenExpiration)

@@ -159,7 +159,7 @@ func TestRefreshToken(t *testing.T) {
 	provider := test.NewProvider(true)
 	cfg.provider = provider
 
-	noAuthzGrant := types.GrantCode{
+	noAuthzGrant := types.Grant{
 		Scopes: types.Scopes{
 			types.Scope{ID: "identity"},
 		},

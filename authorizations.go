@@ -87,7 +87,7 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, cfg config) {
 	// redirection URI using the "application/x-www-form-urlencoded" format,
 	// per Appendix B:
 	// http://tools.ietf.org/html/rfc6749#section-4.2.1
-	grantCode, err := provider.GenGrantCode(authzData.Client, authzData.Scopes, cfg.authzExpiration)
+	grant, err := provider.GenGrant(authzData.Client, authzData.Scopes, cfg.authzExpiration)
 	if err != nil {
 		render.HTML(w, render.Options{
 			Status: http.StatusOK,
@@ -102,7 +102,7 @@ func CreateGrant(w http.ResponseWriter, req *http.Request, cfg config) {
 
 	u := authzData.Client.RedirectURL
 	query := u.Query()
-	query.Set("code", grantCode.Value)
+	query.Set("code", grant.Code)
 	query.Set("state", authzData.State)
 	u.RawQuery = query.Encode()
 
@@ -261,7 +261,7 @@ func implicitGrant(w http.ResponseWriter, req *http.Request, cfg config, authzDa
 	provider := cfg.provider
 	u := authzData.Client.RedirectURL
 
-	noAuthzGrant := types.GrantCode{
+	noAuthzGrant := types.Grant{
 		Scopes: authzData.Scopes,
 	}
 

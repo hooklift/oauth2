@@ -62,10 +62,10 @@ const (
 	GrantUsed                = "used"
 )
 
-// GrantCode represents an authorization grant code.
-type GrantCode struct {
+// Grant represents an authorization grant code.
+type Grant struct {
 	// Authorization code value.
-	Value string
+	Code string
 	// Expiration time for this authorization code.
 	ExpiresIn time.Time `db:"expires_in" json:"expires_in"`
 	// Client's identifier to which this code was emitted to.

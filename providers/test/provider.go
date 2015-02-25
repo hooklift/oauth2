@@ -15,7 +15,7 @@ import (
 
 type Provider struct {
 	Client              types.Client
-	GrantCodes          map[string]types.GrantCode
+	Grants              map[string]types.Grant
 	AccessTokens        map[string]types.Token
 	RefreshTokens       map[string]types.Token
 	isUserAuthenticated bool
@@ -23,7 +23,7 @@ type Provider struct {
 
 func NewProvider(isUserAuthenticated bool) *Provider {
 	p := &Provider{
-		GrantCodes:    make(map[string]types.GrantCode),
+		Grants:        make(map[string]types.Grant),
 		AccessTokens:  make(map[string]types.Token),
 		RefreshTokens: make(map[string]types.Token),
 	}
@@ -44,16 +44,16 @@ func (p *Provider) ClientInfo(clientID string) (types.Client, error) {
 	return p.Client, nil
 }
 
-func (p *Provider) GenGrantCode(client types.Client, scopes types.Scopes, expiration time.Duration) (types.GrantCode, error) {
-	a := types.GrantCode{
-		Value:       uuid.NewV4().String(),
+func (p *Provider) GenGrant(client types.Client, scopes types.Scopes, expiration time.Duration) (types.Grant, error) {
+	a := types.Grant{
+		Code:        uuid.NewV4().String(),
 		ClientID:    client.ID,
 		RedirectURL: client.RedirectURL,
 		Scopes:      scopes,
 	}
 	a.ExpiresIn = time.Now().Add(expiration)
 
-	p.GrantCodes[a.Value] = a
+	p.Grants[a.Code] = a
 	return a, nil
 }
 
@@ -69,11 +69,11 @@ func (p *Provider) ScopesInfo(scopes string) (types.Scopes, error) {
 	return scope, nil
 }
 
-func (p *Provider) GenToken(grantCode types.GrantCode, client types.Client, refreshToken bool, expiration time.Duration) (types.Token, error) {
+func (p *Provider) GenToken(grant types.Grant, client types.Client, refreshToken bool, expiration time.Duration) (types.Token, error) {
 	t := types.Token{
 		Value:    uuid.NewV4().String(),
 		Type:     "bearer",
-		Scopes:   grantCode.Scopes,
+		Scopes:   grant.Scopes,
 		ClientID: client.ID,
 	}
 
@@ -83,9 +83,9 @@ func (p *Provider) GenToken(grantCode types.GrantCode, client types.Client, refr
 		p.RefreshTokens[t.RefreshToken] = t
 	}
 
-	if v, ok := p.GrantCodes[grantCode.Value]; ok {
+	if v, ok := p.Grants[grant.Code]; ok {
 		v.Status = types.GrantUsed
-		p.GrantCodes[grantCode.Value] = v
+		p.Grants[grant.Code] = v
 	}
 
 	p.AccessTokens[t.Value] = t
@@ -102,11 +102,11 @@ func (p *Provider) RefreshToken(refreshToken types.Token, scopes types.Scopes) (
 	// Revokes existing refresh token
 	delete(p.RefreshTokens, refreshToken.Value)
 
-	grantCode := types.GrantCode{
+	grant := types.Grant{
 		Scopes: scopes,
 	}
 
-	return p.GenToken(grantCode, types.Client{
+	return p.GenToken(grant, types.Client{
 		ID: refreshToken.ClientID,
 	}, true, time.Duration(10)*time.Minute)
 }
@@ -127,8 +127,8 @@ func (p *Provider) AuthenticateClient(username, password string) (types.Client, 
 	return p.Client, nil
 }
 
-func (p *Provider) GrantInfo(code string) (types.GrantCode, error) {
-	return p.GrantCodes[code], nil
+func (p *Provider) GrantInfo(code string) (types.Grant, error) {
+	return p.Grants[code], nil
 }
 
 func (p *Provider) TokenInfo(code string) (types.Token, error) {

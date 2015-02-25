@@ -32,7 +32,7 @@ type Provider interface {
 	ClientInfo(clientID string) (info types.Client, err error)
 
 	// GrantInfo returns information about the authorization grant code.
-	GrantInfo(code string) (types.GrantCode, error)
+	GrantInfo(code string) (types.Grant, error)
 
 	// TokenInfo returns information about one specific token.
 	TokenInfo(token string) (types.Token, error)
@@ -48,7 +48,7 @@ type Provider interface {
 	// ResourceScopes returns the scopes associated with a given resource
 	ResourceScopes(url *url.URL) (types.Scopes, error)
 
-	// GenGrantCode issues and stores an authorization grant code, in a persistent storage.
+	// GenGrant issues and stores an authorization grant code, in a persistent storage.
 	// The authorization code MUST expire shortly after it is issued to mitigate
 	// the risk of leaks.  A maximum authorization code lifetime of 10 minutes is
 	// RECOMMENDED. If an authorization code is used more than once, the authorization
@@ -56,11 +56,11 @@ type Provider interface {
 	// previously issued based on that authorization code.  The authorization
 	// code is bound to the client identifier and redirection URI.
 	// -- http://tools.ietf.org/html/rfc6749#section-4.1.2
-	GenGrantCode(client types.Client, scopes types.Scopes, expiration time.Duration) (code types.GrantCode, err error)
+	GenGrant(client types.Client, scopes types.Scopes, expiration time.Duration) (code types.Grant, err error)
 
 	// GenToken generates and stores access and refresh tokens with the given
 	// client information and authorization scope.
-	GenToken(grantCode types.GrantCode, client types.Client, refreshToken bool, expiration time.Duration) (token types.Token, err error)
+	GenToken(grant types.Grant, client types.Client, refreshToken bool, expiration time.Duration) (token types.Token, err error)
 
 	// RevokeToken expires a specific token.
 	RevokeToken(token string) error
