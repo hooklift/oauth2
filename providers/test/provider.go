@@ -51,7 +51,7 @@ func (p *Provider) GenGrantCode(client types.Client, scopes []types.Scope, expir
 		RedirectURL: client.RedirectURL,
 		Scopes:      scopes,
 	}
-	a.ExpiresIn = expiration
+	a.ExpiresIn = time.Now().Add(expiration)
 
 	p.GrantCodes[a.Value] = a
 	return a, nil

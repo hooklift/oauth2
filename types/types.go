@@ -52,7 +52,7 @@ type GrantCode struct {
 	// Authorization code value.
 	Value string
 	// Expiration time for this authorization code.
-	ExpiresIn time.Duration `db:"expires_in" json:"expires_in"`
+	ExpiresIn time.Time `db:"expires_in" json:"expires_in"`
 	// Client's identifier to which this code was emitted to.
 	ClientID string `db:"client_id" json:"client_id"`
 	// Redirect URL associated with the authorization code.
