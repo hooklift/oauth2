@@ -58,8 +58,8 @@ type GrantStatus string
 
 const (
 	GrantRevoked GrantStatus = "revoked"
-	GrantExpired             = "expired"
-	GrantUsed                = "used"
+	GrantExpired GrantStatus = "expired"
+	GrantUsed    GrantStatus = "used"
 )
 
 // Grant represents an authorization grant code.
@@ -83,7 +83,7 @@ type TokenStatus string
 
 const (
 	TokenExpired TokenStatus = "expired"
-	TokenRevoked             = "revoked"
+	TokenRevoked TokenStatus = "revoked"
 )
 
 // Token represents an access token.
