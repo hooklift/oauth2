@@ -47,7 +47,7 @@ func cache(headers http.Header, opts Options) {
 
 // JSON renders JSON content and sends it back to the HTTP client.
 func JSON(w http.ResponseWriter, opts Options) error {
-	if &w == nil {
+	if w == nil {
 		return ErrNilResponseWriter
 	}
 
@@ -72,7 +72,7 @@ func JSON(w http.ResponseWriter, opts Options) error {
 
 // HTML renders HTML content and sends it back to the HTTP client.
 func HTML(w http.ResponseWriter, opts Options) error {
-	if &w == nil {
+	if w == nil {
 		return ErrNilResponseWriter
 	}
 
